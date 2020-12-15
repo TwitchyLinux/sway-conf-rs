@@ -7,7 +7,12 @@ use primitives::*;
 use nom::bytes::complete::{tag, take_while};
 use nom::character::complete::multispace0;
 use nom::IResult;
-use nom::{branch::alt, combinator::value, multi::many_till, sequence::terminated};
+use nom::{
+    branch::alt,
+    combinator::value,
+    multi::{many0, many_till},
+    sequence::terminated,
+};
 use nom_locate::position;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -107,5 +112,12 @@ mod tests {
             }
             assert!(matches!(inners[1].clone(), Stanza::Block(_, _, _)));
         }
+    }
+
+    #[test]
+    fn tc1() {
+        let input = Span::new(include_str!("testdata/tc1.sway"));
+        let output = many0(parse_stanza)(input);
+        assert!(output.is_ok(), "{:?}", output);
     }
 }

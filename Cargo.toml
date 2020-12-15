@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["Tom <twitchyliquid64@ciphersink.net>"]
 edition = "2018"
 
-
 [dependencies]
 nom = { version = "6", default-features = false }
 nom_locate = "3.0"

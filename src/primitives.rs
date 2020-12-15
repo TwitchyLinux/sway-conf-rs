@@ -25,6 +25,13 @@ pub fn line(i: Span) -> IResult<Span, Line> {
     let (s, pos) = position(i)?;
     let (s, v) = take_while(is_cmd_char)(s)?;
 
+    if v.fragment().len() == 0 {
+        return Err(nom::Err::Error(nom::error::Error::new(
+            s,
+            nom::error::ErrorKind::Tag,
+        )));
+    }
+
     Ok((
         s,
         Line {
