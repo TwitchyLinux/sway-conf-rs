@@ -1,4 +1,5 @@
 use nom::bytes::complete::{tag, take_while};
+use nom::sequence::tuple;
 use nom::IResult;
 use nom_locate::{position, LocatedSpan};
 use serde::{ser::*, Deserialize, Serialize};
@@ -31,12 +32,12 @@ pub struct Token<'a> {
 }
 
 /// Line describes a single unit of configuration.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Line<'a> {
     #[serde(serialize_with = "span_serialize")]
     #[serde(skip_deserializing)]
     pub position: Option<Span<'a>>,
-    pub line: &'a str,
+    pub line: String,
 }
 
 #[inline(always)]
@@ -55,11 +56,28 @@ pub fn line(i: Span) -> IResult<Span, Line> {
         )));
     }
 
+    // Handle potential line continuation
+    if v.fragment().ends_with('\\') {
+        if let Ok((s2, (_, l))) = tuple((tag("\n"), line))(s) {
+            let mut line = v.fragment().to_string();
+            line.pop(); // Drop the trailing '\'
+            line.push_str(&l.line);
+
+            return Ok((
+                s2,
+                Line {
+                    position: Some(pos),
+                    line: line,
+                },
+            ));
+        }
+    }
+
     Ok((
         s,
         Line {
             position: Some(pos),
-            line: v.fragment(),
+            line: v.fragment().to_string(),
         },
     ))
 }
@@ -97,7 +115,7 @@ pub fn unary_comment(i: Span) -> IResult<Span, Line> {
         s,
         Line {
             position: Some(pos),
-            line: v.fragment(),
+            line: v.fragment().to_string(),
         },
     ))
 }
@@ -111,7 +129,7 @@ mod tests {
     fn line_basic() {
         let input = Span::new("Lorem ipsum \n foobar");
         let output = line(input);
-        let line = output.as_ref().unwrap().1.line;
+        let line = &output.as_ref().unwrap().1.line;
         let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Lorem ipsum ");
         assert_eq!(position.get_column(), 1);
@@ -121,7 +139,7 @@ mod tests {
     fn line_no_newline() {
         let input = Span::new("Lorem ipsum ");
         let output = line(input);
-        let line = output.as_ref().unwrap().1.line;
+        let line = &output.as_ref().unwrap().1.line;
         let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Lorem ipsum ");
         assert_eq!(position.get_column(), 1);
@@ -131,7 +149,7 @@ mod tests {
     fn line_with_comment() {
         let input = Span::new("set $mod Mod4 # Yeeeeee");
         let output = line(input);
-        let line = output.as_ref().unwrap().1.line;
+        let line = &output.as_ref().unwrap().1.line;
         let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "set $mod Mod4 ");
         assert_eq!(position.get_column(), 1);
@@ -141,7 +159,7 @@ mod tests {
     fn line_with_brace() {
         let input = Span::new("Lorem ipsum { YE");
         let output = line(input);
-        let line = output.as_ref().unwrap().1.line;
+        let line = &output.as_ref().unwrap().1.line;
         let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Lorem ipsum ");
         assert_eq!(position.get_column(), 1);
@@ -151,7 +169,7 @@ mod tests {
     fn unary_comment_basic() {
         let input = Span::new("#Blueberries");
         let output = unary_comment(input);
-        let line = output.as_ref().unwrap().1.line;
+        let line = &output.as_ref().unwrap().1.line;
         let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Blueberries");
         assert_eq!(position.get_column(), 1);

@@ -131,6 +131,7 @@ mod tests {
 
     #[test_case( "tc1" ; "simple directives")]
     #[test_case( "tc2" ; "simple block")]
+    #[test_case( "tc3" ; "line continuation")]
     fn test_config(name: &'static str) {
         let mut c = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let mut j = c.clone();

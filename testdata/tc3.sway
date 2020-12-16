@@ -1,0 +1,3 @@
+bindsym Shift+XF86AudioRaiseVolume exec \
+	pactl set-sink-volume @DEFAULT_SINK@ -1%
+bindsym Control+e exec echo YEEET
