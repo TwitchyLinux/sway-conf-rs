@@ -1,0 +1,44 @@
+[
+  {
+    "type": "block",
+    "prefix": {
+      "position": {
+        "column": 1,
+        "line": 1
+      },
+      "line": "output eDP-1 "
+    },
+    "l_brace": {
+      "position": {
+        "column": 14,
+        "line": 1
+      },
+      "tok": "{"
+    },
+    "r_brace": {
+      "position": {
+        "column": 1,
+        "line": 4
+      },
+      "tok": "}"
+    },
+    "nested": [
+      {
+        "type": "line",
+        "position": {
+          "column": 2,
+          "line": 2
+        },
+        "line": "background ~/wallpaper.png fill"
+      },
+      {
+        "type": "line",
+        "position": {
+          "column": 2,
+          "line": 3
+        },
+        "line": "resolution 1920x1080"
+      }
+    ]
+  }
+]

@@ -1,0 +1,4 @@
+output eDP-1 {
+	background ~/wallpaper.png fill
+	resolution 1920x1080
+}
