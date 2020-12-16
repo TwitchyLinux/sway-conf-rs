@@ -1,18 +1,41 @@
 use nom::bytes::complete::{tag, take_while};
-use nom::character::complete::multispace0;
 use nom::IResult;
-use nom::{
-    branch::alt,
-    combinator::value,
-    sequence::{preceded, tuple},
-};
 use nom_locate::{position, LocatedSpan};
+use serde::{ser::*, Deserialize, Serialize};
 
 pub type Span<'a> = LocatedSpan<&'a str>;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+fn span_serialize<S>(x: &Option<Span<'_>>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match *x {
+        Some(ref x) => {
+            let mut sp = s.serialize_struct("Span", 2)?;
+            sp.serialize_field("column", &x.get_utf8_column())?;
+            sp.serialize_field("line", &x.location_line())?;
+            sp.end()
+        }
+        None => s.serialize_none(),
+    }
+}
+
+/// Token describes the type and location of some character
+/// that has meaning when parsing.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Token<'a> {
+    #[serde(serialize_with = "span_serialize")]
+    #[serde(skip_deserializing)]
+    pub position: Option<Span<'a>>,
+    pub tok: char,
+}
+
+/// Line describes a single unit of configuration.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Line<'a> {
-    pub position: Span<'a>,
+    #[serde(serialize_with = "span_serialize")]
+    #[serde(skip_deserializing)]
+    pub position: Option<Span<'a>>,
     pub line: &'a str,
 }
 
@@ -35,16 +58,34 @@ pub fn line(i: Span) -> IResult<Span, Line> {
     Ok((
         s,
         Line {
-            position: pos,
+            position: Some(pos),
             line: v.fragment(),
         },
     ))
 }
 
-pub fn open_brace(i: Span) -> IResult<Span, Span> {
+pub fn open_brace(i: Span) -> IResult<Span, Token> {
     let (s, pos) = position(i)?;
     let (s, _) = tag("{")(s)?;
-    Ok((s, pos))
+    Ok((
+        s,
+        Token {
+            position: Some(pos),
+            tok: '{',
+        },
+    ))
+}
+
+pub fn close_brace(i: Span) -> IResult<Span, Token> {
+    let (s, pos) = position(i)?;
+    let (s, _) = tag("}")(s)?;
+    Ok((
+        s,
+        Token {
+            position: Some(pos),
+            tok: '}',
+        },
+    ))
 }
 
 pub fn unary_comment(i: Span) -> IResult<Span, Line> {
@@ -55,7 +96,7 @@ pub fn unary_comment(i: Span) -> IResult<Span, Line> {
     Ok((
         s,
         Line {
-            position: pos,
+            position: Some(pos),
             line: v.fragment(),
         },
     ))
@@ -64,13 +105,14 @@ pub fn unary_comment(i: Span) -> IResult<Span, Line> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nom::character::complete::multispace0;
 
     #[test]
     fn line_basic() {
         let input = Span::new("Lorem ipsum \n foobar");
         let output = line(input);
         let line = output.as_ref().unwrap().1.line;
-        let position = output.as_ref().unwrap().1.position;
+        let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Lorem ipsum ");
         assert_eq!(position.get_column(), 1);
     }
@@ -80,7 +122,7 @@ mod tests {
         let input = Span::new("Lorem ipsum ");
         let output = line(input);
         let line = output.as_ref().unwrap().1.line;
-        let position = output.as_ref().unwrap().1.position;
+        let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Lorem ipsum ");
         assert_eq!(position.get_column(), 1);
     }
@@ -90,7 +132,7 @@ mod tests {
         let input = Span::new("set $mod Mod4 # Yeeeeee");
         let output = line(input);
         let line = output.as_ref().unwrap().1.line;
-        let position = output.as_ref().unwrap().1.position;
+        let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "set $mod Mod4 ");
         assert_eq!(position.get_column(), 1);
     }
@@ -100,7 +142,7 @@ mod tests {
         let input = Span::new("Lorem ipsum { YE");
         let output = line(input);
         let line = output.as_ref().unwrap().1.line;
-        let position = output.as_ref().unwrap().1.position;
+        let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Lorem ipsum ");
         assert_eq!(position.get_column(), 1);
     }
@@ -110,7 +152,7 @@ mod tests {
         let input = Span::new("#Blueberries");
         let output = unary_comment(input);
         let line = output.as_ref().unwrap().1.line;
-        let position = output.as_ref().unwrap().1.position;
+        let position = output.as_ref().unwrap().1.position.unwrap();
         assert_eq!(line, "Blueberries");
         assert_eq!(position.get_column(), 1);
     }
@@ -130,8 +172,8 @@ mod tests {
         let input = Span::new("    {\nsomething");
         let (input, _) = multispace0::<_, ()>(input).unwrap();
         let output = open_brace(input);
-        let position = output.as_ref().unwrap().1;
-        assert_eq!(position.get_column(), 5);
+        let tok = output.as_ref().unwrap().1;
+        assert_eq!(tok.position.unwrap().get_column(), 5);
         assert_eq!(output.as_ref().unwrap().0.fragment(), &"\nsomething");
     }
 }

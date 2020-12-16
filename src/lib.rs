@@ -4,22 +4,25 @@ extern crate nom_locate;
 mod primitives;
 use primitives::*;
 
-use nom::bytes::complete::{tag, take_while};
 use nom::character::complete::multispace0;
 use nom::IResult;
-use nom::{
-    branch::alt,
-    combinator::value,
-    multi::{many0, many_till},
-    sequence::terminated,
-};
-use nom_locate::position;
+use nom::{multi::many_till, sequence::tuple};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum Stanza<'a> {
+    #[serde(borrow)]
     Comment(Line<'a>),
+    #[serde(borrow)]
     Line(Line<'a>),
-    Block(Line<'a>, Span<'a>, Vec<Stanza<'a>>),
+    Block {
+        prefix: Line<'a>,
+        l_brace: Token<'a>,
+        r_brace: Token<'a>,
+        nested: Vec<Stanza<'a>>,
+    },
 }
 
 pub fn parse_stanza(i: Span) -> IResult<Span, Stanza> {
@@ -31,9 +34,17 @@ pub fn parse_stanza(i: Span) -> IResult<Span, Stanza> {
     }
 
     let (s, l) = line(i)?;
-    if let Ok((s, b)) = open_brace(s) {
-        let (s, (set, _)) = many_till(parse_stanza, tag("}"))(s)?;
-        Ok((s, Stanza::Block(l, b, set)))
+    if let Ok((s, lb)) = open_brace(s) {
+        let (s, (set, (_, rb))) = many_till(parse_stanza, tuple((multispace0, close_brace)))(s)?;
+        Ok((
+            s,
+            Stanza::Block {
+                prefix: l,
+                l_brace: lb,
+                r_brace: rb,
+                nested: set,
+            },
+        ))
     } else {
         Ok((s, Stanza::Line(l)))
     }
@@ -42,6 +53,10 @@ pub fn parse_stanza(i: Span) -> IResult<Span, Stanza> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nom::multi::many0;
+    use pretty_assertions::assert_eq as assert_pretty;
+    use std::path::PathBuf;
+    use test_case::test_case;
 
     #[test]
     fn comments() {
@@ -85,9 +100,9 @@ mod tests {
         let output = parse_stanza(input);
         assert!(output.is_ok(), "parse failed!  {:?}", output);
         let (_remaining, c) = output.unwrap();
-        if let Stanza::Block(cmd, _brace, inners) = c {
-            assert_eq!(cmd.line, "cmd");
-            assert_eq!(2, inners.len());
+        if let Stanza::Block { prefix, nested, .. } = c {
+            assert_eq!(prefix.line, "cmd");
+            assert_eq!(2, nested.len());
         }
     }
 
@@ -97,27 +112,48 @@ mod tests {
         let output = parse_stanza(input);
         assert!(output.is_ok(), "parse failed!  {:?}", output);
         let (_remaining, c) = output.unwrap();
-        if let Stanza::Block(cmd, _brace, inners) = c {
-            assert_eq!(cmd.line, "cmd");
-            assert_eq!(2, inners.len());
+        if let Stanza::Block { prefix, nested, .. } = c {
+            assert_eq!(prefix.line, "cmd");
+            assert_eq!(2, nested.len());
 
-            if let Stanza::Line(c) = &inners[0] {
+            if let Stanza::Line(c) = &nested[0] {
                 assert_eq!(c.line, "a");
             }
-            assert!(matches!(inners[0].clone(), Stanza::Line(_)));
+            assert!(matches!(nested[0].clone(), Stanza::Line(_)));
 
-            if let Stanza::Block(cmd, _, inner) = &inners[1] {
-                assert_eq!(cmd.line, "b ");
-                assert_eq!(0, inner.len());
+            if let Stanza::Block { prefix, nested, .. } = &nested[1] {
+                assert_eq!(prefix.line, "b ");
+                assert_eq!(0, nested.len());
             }
-            assert!(matches!(inners[1].clone(), Stanza::Block(_, _, _)));
+            assert!(matches!(nested[1].clone(), Stanza::Block{ .. }));
         }
     }
 
-    #[test]
-    fn tc1() {
-        let input = Span::new(include_str!("testdata/tc1.sway"));
+    #[test_case( "tc1" ; "simple directives")]
+    #[test_case( "tc2" ; "simple block")]
+    fn test_config(name: &'static str) {
+        let mut c = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let mut j = c.clone();
+        c.push(format!("testdata/{}.sway", name));
+        j.push(format!("testdata/{}.json", name));
+
+        let sway = std::fs::read_to_string(c).expect("opening config");
+        let expected = std::fs::read_to_string(j).expect("opening result");
+
+        let input = Span::new(&sway);
         let output = many0(parse_stanza)(input);
-        assert!(output.is_ok(), "{:?}", output);
+        assert!(output.is_ok(), "Failed to parse input! Got: {:?}", output);
+
+        let d = serde_json::to_string_pretty(&output.unwrap().1).expect("json encode");
+
+        let mut s = String::from(d.clone());
+        s.push('\n');
+        if s != expected {
+            println!("{}\n\n\n\n", d);
+            assert_pretty!(
+                d.split("\n").collect::<Vec<_>>(),
+                expected.split("\n").collect::<Vec<_>>()
+            );
+        }
     }
 }

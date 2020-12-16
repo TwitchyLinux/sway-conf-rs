@@ -1,0 +1,50 @@
+[
+  {
+    "type": "line",
+    "position": {
+      "column": 1,
+      "line": 1
+    },
+    "line": "set $bindsym bindsym --to-code"
+  },
+  {
+    "type": "line",
+    "position": {
+      "column": 1,
+      "line": 2
+    },
+    "line": "set $mod Mod4"
+  },
+  {
+    "type": "comment",
+    "position": {
+      "column": 1,
+      "line": 4
+    },
+    "line": " Reload the configuration file"
+  },
+  {
+    "type": "line",
+    "position": {
+      "column": 1,
+      "line": 5
+    },
+    "line": "$bindsym $mod+Shift+r reload"
+  },
+  {
+    "type": "line",
+    "position": {
+      "column": 1,
+      "line": 7
+    },
+    "line": "include /etc/sway/config.d/*"
+  },
+  {
+    "type": "line",
+    "position": {
+      "column": 1,
+      "line": 8
+    },
+    "line": "include *.conf"
+  }
+]

@@ -1,0 +1,36 @@
+[
+  {
+    "type": "block",
+    "prefix": {
+      "position": {
+        "column": 1,
+        "line": 1
+      },
+      "line": "mode \"resize\" "
+    },
+    "l_brace": {
+      "position": {
+        "column": 15,
+        "line": 1
+      },
+      "tok": "{"
+    },
+    "r_brace": {
+      "position": {
+        "column": 1,
+        "line": 3
+      },
+      "tok": "}"
+    },
+    "nested": [
+      {
+        "type": "line",
+        "position": {
+          "column": 3,
+          "line": 2
+        },
+        "line": "bindsym Control+e exec echo YEEET"
+      }
+    ]
+  }
+]
