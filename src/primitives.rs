@@ -1,4 +1,5 @@
 use nom::bytes::complete::{tag, take_while};
+use nom::character::complete::multispace0;
 use nom::sequence::tuple;
 use nom::IResult;
 use nom_locate::{position, LocatedSpan};
@@ -58,18 +59,31 @@ pub fn line(i: Span) -> IResult<Span, Line> {
 
     // Handle potential line continuation
     if v.fragment().ends_with('\\') {
-        if let Ok((s2, (_, l))) = tuple((tag("\n"), line))(s) {
-            let mut line = v.fragment().to_string();
-            line.pop(); // Drop the trailing '\'
-            line.push_str(&l.line);
+        if let Ok((s2, _newline)) = tag::<_, _, ()>("\n")(s) {
+            let mut line_tmp = v.fragment().to_string();
+            line_tmp.pop(); // Drop the trailing backslash
 
-            return Ok((
-                s2,
-                Line {
-                    position: Some(pos),
-                    line: line,
-                },
-            ));
+            return Ok(match tuple((multispace0, line))(s2) {
+                Ok((s2, (space, l))) => {
+                    line_tmp.push_str(&space);
+                    line_tmp.push_str(&l.line);
+
+                    (
+                        s2,
+                        Line {
+                            position: Some(pos),
+                            line: line_tmp,
+                        },
+                    )
+                }
+                _ => (
+                    s2,
+                    Line {
+                        position: Some(pos),
+                        line: line_tmp,
+                    },
+                ),
+            });
         }
     }
 
