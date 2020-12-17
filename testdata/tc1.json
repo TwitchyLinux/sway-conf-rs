@@ -1,19 +1,90 @@
 [
   {
     "type": "line",
-    "start": {
-      "column": 1,
-      "line": 1
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 1
+      },
+      "line": "set $bindsym bindsym --to-code"
     },
-    "line": "set $bindsym bindsym --to-code"
+    "atoms": [
+      {
+        "content": {
+          "Arg": "set"
+        },
+        "start_offset": 0,
+        "end_offset": 3,
+        "line": 1,
+        "column": 1
+      },
+      {
+        "content": {
+          "Var": "bindsym"
+        },
+        "start_offset": 4,
+        "end_offset": 12,
+        "line": 1,
+        "column": 5
+      },
+      {
+        "content": {
+          "Arg": "bindsym"
+        },
+        "start_offset": 13,
+        "end_offset": 20,
+        "line": 1,
+        "column": 14
+      },
+      {
+        "content": {
+          "Arg": "--to-code"
+        },
+        "start_offset": 21,
+        "end_offset": 30,
+        "line": 1,
+        "column": 22
+      }
+    ]
   },
   {
     "type": "line",
-    "start": {
-      "column": 1,
-      "line": 2
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 2
+      },
+      "line": "set $mod Mod4"
     },
-    "line": "set $mod Mod4"
+    "atoms": [
+      {
+        "content": {
+          "Arg": "set"
+        },
+        "start_offset": 31,
+        "end_offset": 34,
+        "line": 2,
+        "column": 1
+      },
+      {
+        "content": {
+          "Var": "mod"
+        },
+        "start_offset": 35,
+        "end_offset": 39,
+        "line": 2,
+        "column": 5
+      },
+      {
+        "content": {
+          "Arg": "Mod4"
+        },
+        "start_offset": 40,
+        "end_offset": 44,
+        "line": 2,
+        "column": 10
+      }
+    ]
   },
   {
     "type": "comment",
@@ -25,26 +96,101 @@
   },
   {
     "type": "line",
-    "start": {
-      "column": 1,
-      "line": 5
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 5
+      },
+      "line": "$bindsym $mod+Shift+r reload"
     },
-    "line": "$bindsym $mod+Shift+r reload"
+    "atoms": [
+      {
+        "content": {
+          "Var": "bindsym"
+        },
+        "start_offset": 78,
+        "end_offset": 86,
+        "line": 5,
+        "column": 1
+      },
+      {
+        "content": {
+          "Var": "mod+Shift+r"
+        },
+        "start_offset": 87,
+        "end_offset": 99,
+        "line": 5,
+        "column": 10
+      },
+      {
+        "content": {
+          "Arg": "reload"
+        },
+        "start_offset": 100,
+        "end_offset": 106,
+        "line": 5,
+        "column": 23
+      }
+    ]
   },
   {
     "type": "line",
-    "start": {
-      "column": 1,
-      "line": 7
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 7
+      },
+      "line": "include /etc/sway/config.d/*"
     },
-    "line": "include /etc/sway/config.d/*"
+    "atoms": [
+      {
+        "content": {
+          "Arg": "include"
+        },
+        "start_offset": 108,
+        "end_offset": 115,
+        "line": 7,
+        "column": 1
+      },
+      {
+        "content": {
+          "Arg": "/etc/sway/config.d/*"
+        },
+        "start_offset": 116,
+        "end_offset": 136,
+        "line": 7,
+        "column": 9
+      }
+    ]
   },
   {
     "type": "line",
-    "start": {
-      "column": 1,
-      "line": 8
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 8
+      },
+      "line": "include *.conf"
     },
-    "line": "include *.conf"
+    "atoms": [
+      {
+        "content": {
+          "Arg": "include"
+        },
+        "start_offset": 137,
+        "end_offset": 144,
+        "line": 8,
+        "column": 1
+      },
+      {
+        "content": {
+          "Arg": "*.conf"
+        },
+        "start_offset": 145,
+        "end_offset": 151,
+        "line": 8,
+        "column": 9
+      }
+    ]
   }
 ]

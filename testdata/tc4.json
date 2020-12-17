@@ -8,6 +8,26 @@
       },
       "line": "mode \"resize\" "
     },
+    "prefix_atoms": [
+      {
+        "content": {
+          "Arg": "mode"
+        },
+        "start_offset": 0,
+        "end_offset": 4,
+        "line": 1,
+        "column": 1
+      },
+      {
+        "content": {
+          "Arg": "resize"
+        },
+        "start_offset": 5,
+        "end_offset": 13,
+        "line": 1,
+        "column": 6
+      }
+    ],
     "l_brace": {
       "position": {
         "column": 1,
@@ -25,11 +45,60 @@
     "nested": [
       {
         "type": "line",
-        "start": {
-          "column": 3,
-          "line": 3
+        "line": {
+          "start": {
+            "column": 3,
+            "line": 3
+          },
+          "line": "bindsym Control+e exec echo YEEET"
         },
-        "line": "bindsym Control+e exec echo YEEET"
+        "atoms": [
+          {
+            "content": {
+              "Arg": "bindsym"
+            },
+            "start_offset": 20,
+            "end_offset": 27,
+            "line": 3,
+            "column": 3
+          },
+          {
+            "content": {
+              "Arg": "Control+e"
+            },
+            "start_offset": 28,
+            "end_offset": 37,
+            "line": 3,
+            "column": 11
+          },
+          {
+            "content": {
+              "Arg": "exec"
+            },
+            "start_offset": 38,
+            "end_offset": 42,
+            "line": 3,
+            "column": 21
+          },
+          {
+            "content": {
+              "Arg": "echo"
+            },
+            "start_offset": 43,
+            "end_offset": 47,
+            "line": 3,
+            "column": 26
+          },
+          {
+            "content": {
+              "Arg": "YEEET"
+            },
+            "start_offset": 48,
+            "end_offset": 53,
+            "line": 3,
+            "column": 31
+          }
+        ]
       }
     ]
   }

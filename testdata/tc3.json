@@ -1,25 +1,142 @@
 [
   {
     "type": "line",
-    "start": {
-      "column": 1,
-      "line": 1
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 1
+      },
+      "continuation_spans": [
+        {
+          "from": 41,
+          "offset": 43,
+          "line": 2,
+          "column": 2
+        }
+      ],
+      "line": "bindsym Shift+XF86AudioRaiseVolume exec \tpactl set-sink-volume @DEFAULT_SINK@ -1%"
     },
-    "continuation_spans": [
+    "atoms": [
       {
-        "from": 41,
-        "offset": 43,
-        "line": 2
+        "content": {
+          "Arg": "bindsym"
+        },
+        "start_offset": 0,
+        "end_offset": 7,
+        "line": 1,
+        "column": 1
+      },
+      {
+        "content": {
+          "Arg": "Shift+XF86AudioRaiseVolume"
+        },
+        "start_offset": 8,
+        "end_offset": 34,
+        "line": 1,
+        "column": 9
+      },
+      {
+        "content": {
+          "Arg": "exec"
+        },
+        "start_offset": 35,
+        "end_offset": 39,
+        "line": 1,
+        "column": 36
+      },
+      {
+        "content": {
+          "Arg": "pactl"
+        },
+        "start_offset": 43,
+        "end_offset": 48,
+        "line": 2,
+        "column": 2
+      },
+      {
+        "content": {
+          "Arg": "set-sink-volume"
+        },
+        "start_offset": 49,
+        "end_offset": 64,
+        "line": 2,
+        "column": 8
+      },
+      {
+        "content": {
+          "Arg": "@DEFAULT_SINK@"
+        },
+        "start_offset": 65,
+        "end_offset": 79,
+        "line": 2,
+        "column": 24
+      },
+      {
+        "content": {
+          "Arg": "-1%"
+        },
+        "start_offset": 80,
+        "end_offset": 83,
+        "line": 2,
+        "column": 39
       }
-    ],
-    "line": "bindsym Shift+XF86AudioRaiseVolume exec \tpactl set-sink-volume @DEFAULT_SINK@ -1%"
+    ]
   },
   {
     "type": "line",
-    "start": {
-      "column": 1,
-      "line": 3
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 3
+      },
+      "line": "bindsym Control+e exec echo YEEET"
     },
-    "line": "bindsym Control+e exec echo YEEET"
+    "atoms": [
+      {
+        "content": {
+          "Arg": "bindsym"
+        },
+        "start_offset": 84,
+        "end_offset": 91,
+        "line": 3,
+        "column": 1
+      },
+      {
+        "content": {
+          "Arg": "Control+e"
+        },
+        "start_offset": 92,
+        "end_offset": 101,
+        "line": 3,
+        "column": 9
+      },
+      {
+        "content": {
+          "Arg": "exec"
+        },
+        "start_offset": 102,
+        "end_offset": 106,
+        "line": 3,
+        "column": 19
+      },
+      {
+        "content": {
+          "Arg": "echo"
+        },
+        "start_offset": 107,
+        "end_offset": 111,
+        "line": 3,
+        "column": 24
+      },
+      {
+        "content": {
+          "Arg": "YEEET"
+        },
+        "start_offset": 112,
+        "end_offset": 117,
+        "line": 3,
+        "column": 29
+      }
+    ]
   }
 ]

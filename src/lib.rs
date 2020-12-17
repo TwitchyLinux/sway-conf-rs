@@ -1,9 +1,10 @@
 extern crate nom;
 extern crate nom_locate;
 
+/// Units that make up a sway config, lacking semantics.
 pub mod primitives;
 pub use primitives::{Span, SpanOffset};
-///
+/// Represents the high-level layout of a sway config.
 pub mod layout;
 
 #[cfg(test)]
@@ -40,15 +41,15 @@ mod tests {
         let output = parse_stanza(input);
         assert!(output.is_ok(), "1st parse failed!  {:?}", output);
         let (remaining, c1) = output.unwrap();
-        if let Stanza::Line(c) = c1 {
-            assert_eq!(c.line, "set $mod Mod4");
+        if let Stanza::Line { line, .. } = c1 {
+            assert_eq!(line.line, "set $mod Mod4");
         }
 
         let output = parse_stanza(remaining);
         assert!(output.is_ok(), "2nd parse failed!  {:?}", output);
         let (_, c2) = output.unwrap();
-        if let Stanza::Line(c) = c2 {
-            assert_eq!(c.line, "set $bindsym bindsym --to-code ");
+        if let Stanza::Line { line, .. } = c2 {
+            assert_eq!(line.line, "set $bindsym bindsym --to-code ");
         }
     }
 
@@ -74,10 +75,10 @@ mod tests {
             assert_eq!(prefix.line, "cmd");
             assert_eq!(2, nested.len());
 
-            if let Stanza::Line(c) = &nested[0] {
-                assert_eq!(c.line, "a");
+            if let Stanza::Line { line, .. } = &nested[0] {
+                assert_eq!(line.line, "a");
             }
-            assert!(matches!(nested[0].clone(), Stanza::Line(_)));
+            assert!(matches!(nested[0].clone(), Stanza::Line{ .. }));
 
             if let Stanza::Block { prefix, nested, .. } = &nested[1] {
                 assert_eq!(prefix.line, "b ");
@@ -104,6 +105,16 @@ mod tests {
         let input = Span::new(&sway);
         let output = many0(parse_stanza)(input);
         assert!(output.is_ok(), "Failed to parse input! Got: {:?}", output);
+
+        for line in &output.as_ref().unwrap().1 {
+            if let Stanza::Line { atoms, .. } = line {
+                for atom in atoms {
+                    if let primitives::AtomContent::Arg(c) = &atom.content {
+                        assert_eq!(&sway[atom.start_offset..atom.end_offset], c);
+                    }
+                }
+            }
+        }
 
         let d = serde_json::to_string_pretty(&output.unwrap().1).expect("json encode");
 

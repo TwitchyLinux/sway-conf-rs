@@ -8,6 +8,26 @@
       },
       "line": "output eDP-1 "
     },
+    "prefix_atoms": [
+      {
+        "content": {
+          "Arg": "output"
+        },
+        "start_offset": 0,
+        "end_offset": 6,
+        "line": 1,
+        "column": 1
+      },
+      {
+        "content": {
+          "Arg": "eDP-1"
+        },
+        "start_offset": 7,
+        "end_offset": 12,
+        "line": 1,
+        "column": 8
+      }
+    ],
     "l_brace": {
       "position": {
         "column": 14,
@@ -25,19 +45,72 @@
     "nested": [
       {
         "type": "line",
-        "start": {
-          "column": 2,
-          "line": 2
+        "line": {
+          "start": {
+            "column": 2,
+            "line": 2
+          },
+          "line": "background ~/wallpaper.png fill"
         },
-        "line": "background ~/wallpaper.png fill"
+        "atoms": [
+          {
+            "content": {
+              "Arg": "background"
+            },
+            "start_offset": 16,
+            "end_offset": 26,
+            "line": 2,
+            "column": 2
+          },
+          {
+            "content": {
+              "Arg": "~/wallpaper.png"
+            },
+            "start_offset": 27,
+            "end_offset": 42,
+            "line": 2,
+            "column": 13
+          },
+          {
+            "content": {
+              "Arg": "fill"
+            },
+            "start_offset": 43,
+            "end_offset": 47,
+            "line": 2,
+            "column": 29
+          }
+        ]
       },
       {
         "type": "line",
-        "start": {
-          "column": 2,
-          "line": 3
+        "line": {
+          "start": {
+            "column": 2,
+            "line": 3
+          },
+          "line": "resolution 1920x1080"
         },
-        "line": "resolution 1920x1080"
+        "atoms": [
+          {
+            "content": {
+              "Arg": "resolution"
+            },
+            "start_offset": 49,
+            "end_offset": 59,
+            "line": 3,
+            "column": 2
+          },
+          {
+            "content": {
+              "Arg": "1920x1080"
+            },
+            "start_offset": 60,
+            "end_offset": 69,
+            "line": 3,
+            "column": 13
+          }
+        ]
       }
     ]
   }
