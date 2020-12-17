@@ -110,9 +110,9 @@ mod tests {
         for line in &output.as_ref().unwrap().1 {
             if let Stanza::Line { atoms, .. } = line {
                 for atom in atoms {
-                    // if let primitives::AtomContent::Arg(c) = &atom.content {
-                    //     assert_eq!(&sway[atom.start_offset..atom.end_offset], c);
-                    // }
+                    if let primitives::AtomContent::Arg(c) = &atom.content {
+                        assert_eq!(&sway[atom.start_offset..atom.end_offset], c);
+                    }
                 }
             }
         }

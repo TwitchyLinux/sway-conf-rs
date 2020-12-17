@@ -1,6 +1,6 @@
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_while};
-use nom::character::complete::{multispace0, none_of};
+use nom::character::complete::{multispace0, none_of, one_of};
 use nom::multi::{fold_many1, many0};
 use nom::sequence::{delimited, preceded};
 use nom::IResult;
@@ -67,7 +67,7 @@ fn parse_double_quoted(input: Span) -> IResult<Span, Span> {
 }
 
 fn parse_bracket(input: Span) -> IResult<Span, Span> {
-    let esc = escaped(none_of("\\[]"), '\\', tag("[]"));
+    let esc = escaped(none_of("\\[]"), '\\', one_of("[]"));
     let esc_or_empty = alt((esc, tag("")));
 
     delimited(tag("["), esc_or_empty, tag("]"))(input)
@@ -527,7 +527,7 @@ mod tests {
 
     #[test]
     fn atoms_strings_double_quote() {
-        let input = Span::new("cmd \"swiggity swooty\" \"I'm\"");
+        let input = Span::new("cmd \"swiggity swooty\" \"I'm \\\"quoted\\\"\"");
         let want = vec![
             Atom {
                 content: AtomContent::Arg("cmd".to_string()),
@@ -544,9 +544,9 @@ mod tests {
                 column: 5,
             },
             Atom {
-                content: AtomContent::Arg("I'm".to_string()),
+                content: AtomContent::Arg("I'm \\\"quoted\\\"".to_string()),
                 start_offset: 22,
-                end_offset: 27,
+                end_offset: 38,
                 line: 1,
                 column: 23,
             },
@@ -582,6 +582,21 @@ mod tests {
                 column: 1,
             },
         ];
+
+        let atoms = line(input).unwrap().1.atoms().expect("atom parsing failed");
+        assert_pretty!(atoms, want);
+    }
+
+    #[test]
+    fn escaped_in_braces() {
+        let input = Span::new(" [cmd=\"\\[\\]\"]");
+        let want = vec![Atom {
+            content: AtomContent::Bracket("cmd=\"\\[\\]\"".to_string()),
+            start_offset: 1,
+            end_offset: 13,
+            line: 1,
+            column: 2,
+        }];
 
         let atoms = line(input).unwrap().1.atoms().expect("atom parsing failed");
         assert_pretty!(atoms, want);
