@@ -1,0 +1,198 @@
+[
+  {
+    "type": "comment",
+    "start": {
+      "column": 1,
+      "line": 1
+    },
+    "line": " Thanks to WhyNotHugo for providing these test cases."
+  },
+  {
+    "type": "block",
+    "prefix": {
+      "start": {
+        "column": 1,
+        "line": 3
+      },
+      "line": "input 1133:45088:MX_Vertical_Mouse "
+    },
+    "prefix_atoms": [
+      {
+        "content": {
+          "kind": "arg",
+          "atom": "input"
+        },
+        "start_offset": 56,
+        "end_offset": 61,
+        "line": 3,
+        "column": 1
+      },
+      {
+        "content": {
+          "kind": "arg",
+          "atom": "1133:45088:MX_Vertical_Mouse"
+        },
+        "start_offset": 62,
+        "end_offset": 90,
+        "line": 3,
+        "column": 7
+      }
+    ],
+    "l_brace": {
+      "position": {
+        "column": 36,
+        "line": 3
+      },
+      "tok": "{"
+    },
+    "r_brace": {
+      "position": {
+        "column": 1,
+        "line": 8
+      },
+      "tok": "}"
+    },
+    "nested": [
+      {
+        "type": "comment",
+        "start": {
+          "column": 38,
+          "line": 3
+        },
+        "line": " bluetooth"
+      },
+      {
+        "type": "comment",
+        "start": {
+          "column": 3,
+          "line": 4
+        },
+        "line": " This plays nicely with the mouse set to 800 dpi."
+      },
+      {
+        "type": "comment",
+        "start": {
+          "column": 3,
+          "line": 5
+        },
+        "line": " That's handled by solaar."
+      },
+      {
+        "type": "line",
+        "line": {
+          "start": {
+            "column": 3,
+            "line": 6
+          },
+          "line": "pointer_accel 0"
+        },
+        "atoms": [
+          {
+            "content": {
+              "kind": "arg",
+              "atom": "pointer_accel"
+            },
+            "start_offset": 190,
+            "end_offset": 203,
+            "line": 6,
+            "column": 3
+          },
+          {
+            "content": {
+              "kind": "arg",
+              "atom": "0"
+            },
+            "start_offset": 204,
+            "end_offset": 205,
+            "line": 6,
+            "column": 17
+          }
+        ]
+      },
+      {
+        "type": "line",
+        "line": {
+          "start": {
+            "column": 3,
+            "line": 7
+          },
+          "line": "accel_profile flat"
+        },
+        "atoms": [
+          {
+            "content": {
+              "kind": "arg",
+              "atom": "accel_profile"
+            },
+            "start_offset": 208,
+            "end_offset": 221,
+            "line": 7,
+            "column": 3
+          },
+          {
+            "content": {
+              "kind": "arg",
+              "atom": "flat"
+            },
+            "start_offset": 222,
+            "end_offset": 226,
+            "line": 7,
+            "column": 17
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "line",
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 10
+      },
+      "line": "for_window [title=\".*\"] title_format %title゜"
+    },
+    "atoms": [
+      {
+        "content": {
+          "kind": "arg",
+          "atom": "for_window"
+        },
+        "start_offset": 230,
+        "end_offset": 240,
+        "line": 10,
+        "column": 1
+      },
+      {
+        "content": {
+          "kind": "bracket",
+          "atom": "title=\".*\""
+        },
+        "start_offset": 241,
+        "end_offset": 253,
+        "line": 10,
+        "column": 12
+      },
+      {
+        "content": {
+          "kind": "arg",
+          "atom": "title_format"
+        },
+        "start_offset": 254,
+        "end_offset": 266,
+        "line": 10,
+        "column": 25
+      },
+      {
+        "content": {
+          "kind": "arg",
+          "atom": "%title゜"
+        },
+        "start_offset": 267,
+        "end_offset": 276,
+        "line": 10,
+        "column": 38
+      }
+    ]
+  }
+]

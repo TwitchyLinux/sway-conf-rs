@@ -66,6 +66,13 @@ fn parse_double_quoted(input: Span) -> IResult<Span, Span> {
     delimited(tag("\""), esc_or_empty, tag("\""))(input)
 }
 
+fn parse_bracket(input: Span) -> IResult<Span, Span> {
+    let esc = escaped(none_of("\\[]"), '\\', tag("[]"));
+    let esc_or_empty = alt((esc, tag("")));
+
+    delimited(tag("["), esc_or_empty, tag("]"))(input)
+}
+
 fn arg(s: Span) -> IResult<Span, (Span, String)> {
     let (s, pos) = position(s)?;
     let (s, bits) = fold_many1(
@@ -87,6 +94,7 @@ fn arg(s: Span) -> IResult<Span, (Span, String)> {
             }),
     ))
 }
+
 fn var(s: Span) -> IResult<Span, Span> {
     preceded(tag("$"), is_not(" '\"\\[]"))(s)
 }
@@ -96,6 +104,7 @@ fn var(s: Span) -> IResult<Span, Span> {
 pub enum AtomContent {
     Arg(String),
     Var(String),
+    Bracket(String),
 }
 
 /// The smallest unit of information that makes up a command.
@@ -121,6 +130,20 @@ pub fn atom(mut s: Span) -> IResult<Span, Atom> {
                 start_offset: var.location_offset() - 1,
                 end_offset: s.location_offset(),
                 content: AtomContent::Var(str),
+                line: 0,
+                column: 0,
+            },
+        ));
+    }
+
+    let (s, b_pos) = position(s)?;
+    if let Ok((s, b)) = parse_bracket(s) {
+        return Ok((
+            s,
+            Atom {
+                start_offset: b_pos.location_offset(),
+                end_offset: s.location_offset(),
+                content: AtomContent::Bracket(b.to_string()),
                 line: 0,
                 column: 0,
             },

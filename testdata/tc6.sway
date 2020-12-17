@@ -1,0 +1,10 @@
+# Thanks to WhyNotHugo for providing these test cases.
+
+input 1133:45088:MX_Vertical_Mouse { # bluetooth
+  # This plays nicely with the mouse set to 800 dpi.
+  # That's handled by solaar.
+  pointer_accel 0
+  accel_profile flat
+}
+
+for_window [title=".*"] title_format %title゜
