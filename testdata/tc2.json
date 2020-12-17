@@ -11,7 +11,8 @@
     "prefix_atoms": [
       {
         "content": {
-          "Arg": "mode"
+          "kind": "arg",
+          "atom": "mode"
         },
         "start_offset": 0,
         "end_offset": 4,
@@ -20,7 +21,8 @@
       },
       {
         "content": {
-          "Arg": "resize"
+          "kind": "arg",
+          "atom": "resize"
         },
         "start_offset": 5,
         "end_offset": 13,
@@ -55,7 +57,8 @@
         "atoms": [
           {
             "content": {
-              "Arg": "bindsym"
+              "kind": "arg",
+              "atom": "bindsym"
             },
             "start_offset": 18,
             "end_offset": 25,
@@ -64,7 +67,8 @@
           },
           {
             "content": {
-              "Arg": "Control+e"
+              "kind": "arg",
+              "atom": "Control+e"
             },
             "start_offset": 26,
             "end_offset": 35,
@@ -73,7 +77,8 @@
           },
           {
             "content": {
-              "Arg": "exec"
+              "kind": "arg",
+              "atom": "exec"
             },
             "start_offset": 36,
             "end_offset": 40,
@@ -82,7 +87,8 @@
           },
           {
             "content": {
-              "Arg": "echo"
+              "kind": "arg",
+              "atom": "echo"
             },
             "start_offset": 41,
             "end_offset": 45,
@@ -91,7 +97,8 @@
           },
           {
             "content": {
-              "Arg": "YEEET"
+              "kind": "arg",
+              "atom": "YEEET"
             },
             "start_offset": 46,
             "end_offset": 51,

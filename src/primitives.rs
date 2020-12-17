@@ -92,6 +92,7 @@ fn var(s: Span) -> IResult<Span, Span> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "kind", content = "atom")]
 pub enum AtomContent {
     Arg(String),
     Var(String),

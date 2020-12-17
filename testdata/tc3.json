@@ -19,7 +19,8 @@
     "atoms": [
       {
         "content": {
-          "Arg": "bindsym"
+          "kind": "arg",
+          "atom": "bindsym"
         },
         "start_offset": 0,
         "end_offset": 7,
@@ -28,7 +29,8 @@
       },
       {
         "content": {
-          "Arg": "Shift+XF86AudioRaiseVolume"
+          "kind": "arg",
+          "atom": "Shift+XF86AudioRaiseVolume"
         },
         "start_offset": 8,
         "end_offset": 34,
@@ -37,7 +39,8 @@
       },
       {
         "content": {
-          "Arg": "exec"
+          "kind": "arg",
+          "atom": "exec"
         },
         "start_offset": 35,
         "end_offset": 39,
@@ -46,7 +49,8 @@
       },
       {
         "content": {
-          "Arg": "pactl"
+          "kind": "arg",
+          "atom": "pactl"
         },
         "start_offset": 43,
         "end_offset": 48,
@@ -55,7 +59,8 @@
       },
       {
         "content": {
-          "Arg": "set-sink-volume"
+          "kind": "arg",
+          "atom": "set-sink-volume"
         },
         "start_offset": 49,
         "end_offset": 64,
@@ -64,7 +69,8 @@
       },
       {
         "content": {
-          "Arg": "@DEFAULT_SINK@"
+          "kind": "arg",
+          "atom": "@DEFAULT_SINK@"
         },
         "start_offset": 65,
         "end_offset": 79,
@@ -73,7 +79,8 @@
       },
       {
         "content": {
-          "Arg": "-1%"
+          "kind": "arg",
+          "atom": "-1%"
         },
         "start_offset": 80,
         "end_offset": 83,
@@ -94,7 +101,8 @@
     "atoms": [
       {
         "content": {
-          "Arg": "bindsym"
+          "kind": "arg",
+          "atom": "bindsym"
         },
         "start_offset": 84,
         "end_offset": 91,
@@ -103,7 +111,8 @@
       },
       {
         "content": {
-          "Arg": "Control+e"
+          "kind": "arg",
+          "atom": "Control+e"
         },
         "start_offset": 92,
         "end_offset": 101,
@@ -112,7 +121,8 @@
       },
       {
         "content": {
-          "Arg": "exec"
+          "kind": "arg",
+          "atom": "exec"
         },
         "start_offset": 102,
         "end_offset": 106,
@@ -121,7 +131,8 @@
       },
       {
         "content": {
-          "Arg": "echo"
+          "kind": "arg",
+          "atom": "echo"
         },
         "start_offset": 107,
         "end_offset": 111,
@@ -130,7 +141,8 @@
       },
       {
         "content": {
-          "Arg": "YEEET"
+          "kind": "arg",
+          "atom": "YEEET"
         },
         "start_offset": 112,
         "end_offset": 117,
