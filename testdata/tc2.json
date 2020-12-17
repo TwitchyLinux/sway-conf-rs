@@ -2,7 +2,7 @@
   {
     "type": "block",
     "prefix": {
-      "position": {
+      "start": {
         "column": 1,
         "line": 1
       },
@@ -25,7 +25,7 @@
     "nested": [
       {
         "type": "line",
-        "position": {
+        "start": {
           "column": 3,
           "line": 2
         },

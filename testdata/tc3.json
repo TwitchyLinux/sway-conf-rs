@@ -1,15 +1,22 @@
 [
   {
     "type": "line",
-    "position": {
+    "start": {
       "column": 1,
       "line": 1
     },
+    "continuation_spans": [
+      {
+        "from": 41,
+        "offset": 43,
+        "line": 2
+      }
+    ],
     "line": "bindsym Shift+XF86AudioRaiseVolume exec \tpactl set-sink-volume @DEFAULT_SINK@ -1%"
   },
   {
     "type": "line",
-    "position": {
+    "start": {
       "column": 1,
       "line": 3
     },

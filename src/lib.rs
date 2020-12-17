@@ -2,7 +2,7 @@ extern crate nom;
 extern crate nom_locate;
 
 pub mod primitives;
-pub use primitives::Span;
+pub use primitives::{Span, SpanOffset};
 ///
 pub mod layout;
 
