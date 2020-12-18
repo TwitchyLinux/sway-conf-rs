@@ -194,5 +194,83 @@
         "column": 38
       }
     ]
+  },
+  {
+    "type": "line",
+    "line": {
+      "start": {
+        "column": 1,
+        "line": 12
+      },
+      "line": "client.focused          #404552  #404552     #c3cddb  #00ff00"
+    },
+    "atoms": [
+      {
+        "content": {
+          "kind": "arg",
+          "atom": "client.focused"
+        },
+        "start_offset": 278,
+        "end_offset": 292,
+        "line": 12,
+        "column": 1
+      },
+      {
+        "content": {
+          "kind": "rgb",
+          "atom": [
+            64,
+            69,
+            82
+          ]
+        },
+        "start_offset": 302,
+        "end_offset": 309,
+        "line": 12,
+        "column": 25
+      },
+      {
+        "content": {
+          "kind": "rgb",
+          "atom": [
+            64,
+            69,
+            82
+          ]
+        },
+        "start_offset": 311,
+        "end_offset": 318,
+        "line": 12,
+        "column": 34
+      },
+      {
+        "content": {
+          "kind": "rgb",
+          "atom": [
+            195,
+            205,
+            219
+          ]
+        },
+        "start_offset": 323,
+        "end_offset": 330,
+        "line": 12,
+        "column": 46
+      },
+      {
+        "content": {
+          "kind": "rgb",
+          "atom": [
+            0,
+            255,
+            0
+          ]
+        },
+        "start_offset": 332,
+        "end_offset": 339,
+        "line": 12,
+        "column": 55
+      }
+    ]
   }
 ]

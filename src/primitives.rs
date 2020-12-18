@@ -1,12 +1,13 @@
 use nom::branch::alt;
-use nom::bytes::complete::{escaped, is_not, tag, take_while};
+use nom::bytes::complete::{escaped, is_not, tag, take_while, take_while_m_n};
 use nom::character::complete::{multispace0, none_of, one_of};
 use nom::multi::{fold_many1, many0};
-use nom::sequence::{delimited, preceded};
+use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 use nom_locate::{position, LocatedSpan};
 use serde::{ser::*, Deserialize, Serialize};
 
+/// Describes a section of text at a known location in a source file.
 pub type Span<'a> = LocatedSpan<&'a str>;
 
 /// Describes a location in a source file starting from an offset.
@@ -42,14 +43,21 @@ where
     }
 }
 
-/// Token describes the type and location of some character
-/// that has meaning when parsing.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Token<'a> {
-    #[serde(serialize_with = "span_serialize")]
-    #[serde(skip_deserializing)]
-    pub position: Option<Span<'a>>,
-    pub tok: char,
+fn hex2(input: Span) -> IResult<Span, u8> {
+    let (s, b) = take_while_m_n(2, 2, |c: char| c.is_digit(16))(input)?;
+
+    Ok((
+        s,
+        u8::from_str_radix(&b, 16)
+            .map_err(|_| nom::Err::Error(nom::error::Error::new(s, nom::error::ErrorKind::Tag)))?,
+    ))
+}
+
+fn parse_hex_color(input: Span) -> IResult<Span, (u8, u8, u8)> {
+    let (input, _) = tag("#")(input)?;
+    let (input, (red, green, blue)) = tuple((hex2, hex2, hex2))(input)?;
+
+    Ok((input, (red, green, blue)))
 }
 
 fn parse_single_quoted(input: Span) -> IResult<Span, Span> {
@@ -105,6 +113,7 @@ pub enum AtomContent {
     Arg(String),
     Var(String),
     Bracket(String),
+    Rgb(u8, u8, u8),
 }
 
 /// The smallest unit of information that makes up a command.
@@ -117,10 +126,12 @@ pub struct Atom {
     pub column: usize,
 }
 
+/// Parses an atom.
 pub fn atom(mut s: Span) -> IResult<Span, Atom> {
     if let Ok((i, _)) = multispace0::<_, ()>(s) {
         s = i;
     }
+    let (s, p) = position(s)?;
 
     if let Ok((s, var)) = var(s) {
         let str = var.fragment().to_string();
@@ -136,14 +147,26 @@ pub fn atom(mut s: Span) -> IResult<Span, Atom> {
         ));
     }
 
-    let (s, b_pos) = position(s)?;
     if let Ok((s, b)) = parse_bracket(s) {
         return Ok((
             s,
             Atom {
-                start_offset: b_pos.location_offset(),
+                start_offset: p.location_offset(),
                 end_offset: s.location_offset(),
                 content: AtomContent::Bracket(b.to_string()),
+                line: 0,
+                column: 0,
+            },
+        ));
+    }
+
+    if let Ok((s, (r, g, b))) = parse_hex_color(s) {
+        return Ok((
+            s,
+            Atom {
+                start_offset: p.location_offset(),
+                end_offset: s.location_offset(),
+                content: AtomContent::Rgb(r, g, b),
                 line: 0,
                 column: 0,
             },
@@ -228,7 +251,7 @@ impl<'a> Line<'a> {
 
 #[inline(always)]
 fn is_cmd_char(chr: char) -> bool {
-    chr != '\n' && chr != '#' && chr != '{' && chr != '}'
+    chr != '\n' && chr != '{' && chr != '}'
 }
 
 pub fn line(i: Span) -> IResult<Span, Line> {
@@ -303,6 +326,31 @@ pub fn line(i: Span) -> IResult<Span, Line> {
     ))
 }
 
+pub fn unary_comment(i: Span) -> IResult<Span, Line> {
+    let (s, pos) = position(i)?;
+    let (s, _) = tag("#")(s)?;
+    let (s, v) = take_while(|chr| chr != '\n')(s)?;
+
+    Ok((
+        s,
+        Line {
+            start: Some(pos),
+            continuation_spans: None,
+            line: v.fragment().to_string(),
+        },
+    ))
+}
+
+/// Token describes the type and location of some character
+/// that has meaning when parsing.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Token<'a> {
+    #[serde(serialize_with = "span_serialize")]
+    #[serde(skip_deserializing)]
+    pub position: Option<Span<'a>>,
+    pub tok: char,
+}
+
 pub fn open_brace(i: Span) -> IResult<Span, Token> {
     let (s, pos) = position(i)?;
     let (s, _) = tag("{")(s)?;
@@ -323,21 +371,6 @@ pub fn close_brace(i: Span) -> IResult<Span, Token> {
         Token {
             position: Some(pos),
             tok: '}',
-        },
-    ))
-}
-
-pub fn unary_comment(i: Span) -> IResult<Span, Line> {
-    let (s, pos) = position(i)?;
-    let (s, _) = tag("#")(s)?;
-    let (s, v) = take_while(|chr| chr != '\n')(s)?;
-
-    Ok((
-        s,
-        Line {
-            start: Some(pos),
-            continuation_spans: None,
-            line: v.fragment().to_string(),
         },
     ))
 }
@@ -365,16 +398,6 @@ mod tests {
         let line = &output.as_ref().unwrap().1.line;
         let position = output.as_ref().unwrap().1.start.unwrap();
         assert_eq!(line, "Lorem ipsum ");
-        assert_eq!(position.get_column(), 1);
-    }
-
-    #[test]
-    fn line_with_comment() {
-        let input = Span::new("set $mod Mod4 # Yeeeeee");
-        let output = line(input);
-        let line = &output.as_ref().unwrap().1.line;
-        let position = output.as_ref().unwrap().1.start.unwrap();
-        assert_eq!(line, "set $mod Mod4 ");
         assert_eq!(position.get_column(), 1);
     }
 

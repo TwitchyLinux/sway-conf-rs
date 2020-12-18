@@ -52,7 +52,7 @@
             "column": 3,
             "line": 3
           },
-          "line": "bindsym Control+e exec echo YEEET"
+          "line": "bindsym Control+e exec echo YEEET # something"
         },
         "atoms": [
           {
@@ -104,6 +104,26 @@
             "end_offset": 53,
             "line": 3,
             "column": 31
+          },
+          {
+            "content": {
+              "kind": "arg",
+              "atom": "#"
+            },
+            "start_offset": 54,
+            "end_offset": 55,
+            "line": 3,
+            "column": 37
+          },
+          {
+            "content": {
+              "kind": "arg",
+              "atom": "something"
+            },
+            "start_offset": 56,
+            "end_offset": 65,
+            "line": 3,
+            "column": 39
           }
         ]
       }

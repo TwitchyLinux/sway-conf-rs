@@ -1,4 +1,4 @@
 mode "resize" \
 {
-  bindsym Control+e exec echo YEEET
+  bindsym Control+e exec echo YEEET # something
 }

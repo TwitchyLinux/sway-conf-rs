@@ -49,7 +49,7 @@ mod tests {
         assert!(output.is_ok(), "2nd parse failed!  {:?}", output);
         let (_, c2) = output.unwrap();
         if let Stanza::Line { line, .. } = c2 {
-            assert_eq!(line.line, "set $bindsym bindsym --to-code ");
+            assert_eq!(line.line, "set $bindsym bindsym --to-code # lulz");
         }
     }
 

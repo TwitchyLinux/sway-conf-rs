@@ -8,3 +8,5 @@ input 1133:45088:MX_Vertical_Mouse { # bluetooth
 }
 
 for_window [title=".*"] title_format %title゜
+
+client.focused          #404552  #404552     #c3cddb  #00ff00
