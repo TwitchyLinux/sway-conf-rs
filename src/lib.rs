@@ -7,6 +7,9 @@ pub use primitives::{Span, SpanOffset};
 /// Represents the high-level layout of a sway config.
 pub mod layout;
 
+/// Represents the command tree.
+pub mod ast;
+
 #[cfg(test)]
 mod tests {
     use super::*;
