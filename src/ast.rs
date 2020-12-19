@@ -47,6 +47,27 @@ impl SetVar<'_> {
     }
 }
 
+/// An expression runs the specified arguments in a shell subprocess.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Exec<'a> {
+    line: primitives::Line<'a>,
+    args: Vec<Atom>,
+}
+
+impl Exec<'_> {
+    /// Returns the subshell invocation.
+    pub fn command(&self) -> Vec<Atom> {
+        todo!();
+    }
+}
+
+/// An expression symbolizing switching to a specific mode.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct SwitchMode<'a> {
+    line: primitives::Line<'a>,
+    mode: Atom,
+}
+
 /// Represents a sway command. This may not correspond to a line
 /// in the config, in the event of line continuations or blocks.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -57,12 +78,22 @@ pub enum Item<'a> {
     Comment(primitives::Line<'a>),
     /// A 'set' command.
     Set(SetVar<'a>),
+    /// An 'exec' command.
+    Exec(Exec<'a>),
+    /// A command to switch to the specified mode.
+    SwitchMode(SwitchMode<'a>),
     Unknown(Unknown<'a>),
 }
 
 macro_rules! cmd_matcher {
     ($cmd:literal, at_least=2) => {
-        ($cmd, true)
+        ($cmd, true, _)
+    };
+    ($cmd:literal, at_least=1) => {
+        ($cmd, _, _)
+    };
+    ($cmd:literal, exact=$sz:literal) => {
+        ($cmd, _, $sz)
     };
 }
 
@@ -83,8 +114,8 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
         });
     };
 
-    // (cmd as lowercase, at-least-2-args)
-    match (cmd.as_str(), atoms.len() >= 2) {
+    // (cmd as lowercase, at-least-2-args, exact-len)
+    match (cmd.as_str(), atoms.len() >= 2, atoms.len()) {
         cmd_matcher!("set", at_least = 2) => {
             if let AtomContent::Var(_) = &atoms[1].content {
                 let variable = atoms.remove(1);
@@ -100,6 +131,14 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
                 })
             }
         }
+        cmd_matcher!("exec", at_least = 1) => Ok(Item::Exec(Exec {
+            line,
+            args: atoms[1..].to_vec(),
+        })),
+        cmd_matcher!("mode", exact = 2) => Ok(Item::SwitchMode(SwitchMode {
+            line,
+            mode: atoms[1].clone(),
+        })),
         _ => Err(Err {
             stanza: layout::Stanza::Line { line, atoms },
             err: "unhandled line".to_string(),
@@ -202,6 +241,39 @@ mod tests {
             assert_eq!(ast.len(), 1);
             assert!(matches!(&ast[0], Item::Set(sv) if sv.expand_at_runtime()));
             assert!(matches!(&ast[0], Item::Set(sv) if sv.name() == "mod"));
+        }
+    }
+
+    mod exec {
+        use super::*;
+
+        #[test]
+        fn cmd() {
+            let ast =
+                parse_to_ast!("\nexec systemd-cat --stderr-priority=warning -t mako $something");
+
+            assert_eq!(ast.len(), 1);
+            assert!(matches!(&ast[0], Item::Exec(Exec { args, .. }) if {
+                let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                s == vec!["systemd-cat", "--stderr-priority=warning", "-t", "mako", "$something"]
+            }));
+        }
+    }
+
+    mod mode {
+        use super::*;
+
+        #[test]
+        fn cmd() {
+            let ast = parse_to_ast!("\nmode \"blueberry pie\"");
+
+            assert_eq!(ast.len(), 1);
+            assert!(
+                matches!(&ast[0], Item::SwitchMode(SwitchMode { mode, .. }) if {
+                    let m: String = mode.content.clone().into();
+                    m == "blueberry pie"
+                })
+            );
         }
     }
 }

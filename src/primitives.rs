@@ -116,6 +116,28 @@ pub enum AtomContent {
     Rgb(u8, u8, u8),
 }
 
+impl Into<String> for AtomContent {
+    fn into(self) -> String {
+        match self {
+            AtomContent::Arg(a) => a,
+            AtomContent::Var(v) => {
+                let mut out = String::with_capacity(v.len() + 1);
+                out.push('$');
+                out.push_str(&v);
+                out
+            }
+            AtomContent::Bracket(v) => {
+                let mut out = String::with_capacity(v.len() + 2);
+                out.push('[');
+                out.push_str(&v);
+                out.push(']');
+                out
+            }
+            AtomContent::Rgb(r, g, b) => String::from(format!("#{:02X}{:02X}{:02X}", r, g, b)),
+        }
+    }
+}
+
 /// The smallest unit of information that makes up a command.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Atom {
