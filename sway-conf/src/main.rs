@@ -47,10 +47,15 @@ fn dump_bindings(file: PathBuf) -> Result<(), String> {
     let mut table = Table::new();
     table.set_titles(row!["keys", "action"]);
     for item in ast {
-        if let ast::Item::BindSym(b) = item {
+        if let ast::Item::BindSym(ast::BindSym {
+            keys,
+            args: ast::Subset::Unresolved(args),
+            ..
+        }) = item
+        {
             table.add_row(Row::new(vec![
                 Cell::new(
-                    &b.keys
+                    &keys
                         .into_iter()
                         .fold(String::with_capacity(32), |mut acc, k| {
                             if acc.len() > 0 {
@@ -61,24 +66,39 @@ fn dump_bindings(file: PathBuf) -> Result<(), String> {
                             acc
                         }),
                 ),
-                Cell::new(
-                    &b.args
-                        .into_iter()
-                        .fold(String::with_capacity(32), |mut acc, k| {
-                            if acc.len() > 0 {
-                                acc.push_str(" ");
-                            }
-                            let k: String = k.content.into();
-                            acc.push_str(&k);
-                            acc
-                        }),
-                ),
+                Cell::new(&linebreak(args.into_iter().fold(
+                    String::with_capacity(32),
+                    |mut acc, k| {
+                        if acc.len() > 0 {
+                            acc.push_str(" ");
+                        }
+                        let k: String = k.content.into();
+                        acc.push_str(&k);
+                        acc
+                    },
+                ))),
             ]));
         }
     }
 
-    table.printstd();
+    table.print_tty(false);
     Ok(())
+}
+
+fn linebreak(input: String) -> String {
+    let mut out = String::with_capacity(input.len() + 8);
+    let mut width = 0;
+    for word in input.split(' ') {
+        width += word.len() + 1;
+        if width > 25 {
+            out.push('\n');
+            width = 0;
+        }
+        out.push_str(word);
+        out.push(' ');
+    }
+
+    out
 }
 
 fn dump_shorthands(file: PathBuf) -> Result<(), String> {
@@ -93,23 +113,22 @@ fn dump_shorthands(file: PathBuf) -> Result<(), String> {
             let v: String = s.variable.content.into();
             table.add_row(Row::new(vec![
                 Cell::new(&v),
-                Cell::new(
-                    &s.values
-                        .into_iter()
-                        .fold(String::with_capacity(32), |mut acc, k| {
-                            if acc.len() > 0 {
-                                acc.push_str(" ");
-                            }
-                            let k: String = k.content.into();
-                            acc.push_str(&k);
-                            acc
-                        }),
-                ),
+                Cell::new(&linebreak(s.values.into_iter().fold(
+                    String::with_capacity(32),
+                    |mut acc, k| {
+                        if acc.len() > 0 {
+                            acc.push_str(" ");
+                        }
+                        let k: String = k.content.into();
+                        acc.push_str(&k);
+                        acc
+                    },
+                ))),
             ]));
         }
     }
 
-    table.printstd();
+    table.print_tty(false);
     Ok(())
 }
 

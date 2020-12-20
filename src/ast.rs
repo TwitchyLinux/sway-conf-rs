@@ -1,5 +1,5 @@
 use crate::{layout, primitives};
-use primitives::{Atom, AtomContent};
+use primitives::{Atom, AtomContent, Token};
 pub mod bind;
 use serde::{Deserialize, Serialize};
 
@@ -19,13 +19,13 @@ pub struct Unknown<'a> {
 
 /// An expression which sets a variable to a specific value.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub struct SetVar<'a> {
-    pub line: primitives::Line<'a>,
+pub struct SetVar {
+    pub cmd: Atom,
     pub variable: Atom,
     pub values: Vec<Atom>,
 }
 
-impl SetVar<'_> {
+impl SetVar {
     /// Indicates if the variable should be expanded at runtime.
     pub fn expand_at_runtime(&self) -> bool {
         if let AtomContent::Var(v) = &self.variable.content {
@@ -49,37 +49,41 @@ impl SetVar<'_> {
 
 /// An expression runs the specified arguments in a shell subprocess.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub struct Exec<'a> {
-    pub line: primitives::Line<'a>,
+pub struct Exec {
+    pub cmd: Atom,
     pub args: Vec<Atom>,
 }
 
-impl<'a> Exec<'a> {
+impl Exec {
     /// Returns the atoms making up the subshell invocation.
-    pub fn command_atoms(&'a self) -> &'a Vec<Atom> {
+    pub fn command_atoms(&self) -> &Vec<Atom> {
         &self.args
     }
 }
 
 /// An expression symbolizing switching to a specific mode.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub struct SwitchMode<'a> {
-    pub line: primitives::Line<'a>,
+pub struct SwitchMode {
+    pub cmd: Atom,
     pub mode: Atom,
 }
 
 /// An expression describing a key binding.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct BindSym<'a> {
-    pub line: primitives::Line<'a>,
+    pub cmd: Atom,
     pub flags: bind::FLAGS,
     pub keys: Vec<bind::Key>,
-    pub args: Vec<Atom>,
+    pub args: Subset<'a>,
 }
 
-// impl<'a> BindSym<'a> {
-//
-// }
+/// An expression describing a subcommand or an unresolved set of tokens.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub enum Subset<'a> {
+    Unresolved(Vec<Atom>),
+    #[serde(borrow)]
+    Item(Box<Item<'a>>),
+}
 
 /// Represents a sway command. This may not directly correspond to a
 /// line in the config, due to possible line continuations or blocks.
@@ -90,13 +94,19 @@ pub enum Item<'a> {
     #[serde(borrow)]
     Comment(primitives::Line<'a>),
     /// A 'set' command.
-    Set(SetVar<'a>),
+    Set(SetVar),
     /// An 'exec' command.
-    Exec(Exec<'a>),
+    Exec(Exec),
     /// A command to switch to the specified mode.
-    SwitchMode(SwitchMode<'a>),
+    SwitchMode(SwitchMode),
     /// A command which maps a key combination to a sway command.
     BindSym(BindSym<'a>),
+    /// A set of commands within a block.
+    Nested {
+        l_brace: Token<'a>,
+        r_brace: Token<'a>,
+        nested: Vec<Item<'a>>,
+    },
     /// A stanza which is invalid or not yet supported.
     Unknown(layout::Stanza<'a>),
 }
@@ -133,12 +143,13 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
     // (cmd as lowercase, at-least-2-args, exact-len)
     match (cmd.as_str(), atoms.len() >= 2, atoms.len()) {
         cmd_matcher!("set", at_least = 2) => {
-            if let AtomContent::Var(_) = &atoms[1].content {
-                let variable = atoms.remove(1);
+            let cmd = atoms.remove(0);
+            if let AtomContent::Var(_) = &atoms[0].content {
+                let variable = atoms.remove(0);
                 Ok(Item::Set(SetVar {
-                    line,
+                    cmd,
                     variable,
-                    values: atoms[1..].to_vec(),
+                    values: atoms,
                 }))
             } else {
                 Err(Err {
@@ -149,12 +160,12 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
         }
         cmd_matcher!("bindsym", at_least = 2) => bind::parse(line, atoms),
         cmd_matcher!("exec", at_least = 1) => Ok(Item::Exec(Exec {
-            line,
-            args: atoms[1..].to_vec(),
+            cmd: atoms.remove(0),
+            args: atoms,
         })),
         cmd_matcher!("mode", exact = 2) => Ok(Item::SwitchMode(SwitchMode {
-            line,
-            mode: atoms[1].clone(),
+            cmd: atoms.remove(0),
+            mode: atoms.remove(0),
         })),
         _ => Ok(Item::Unknown(layout::Stanza::Line { line, atoms })),
     }
@@ -162,11 +173,38 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
     //Ok(Item::Comment(l))
 }
 
-fn parse_inner<'a>(stanza: layout::Stanza<'a>) -> Result<Item<'a>, Err> {
+fn parse_inner<'a>(
+    stanza: layout::Stanza<'a>,
+    outer_prefix_atoms: Vec<Atom>,
+) -> Result<Item<'a>, Err> {
     match stanza {
         layout::Stanza::Comment(l) => Ok(Item::Comment(l)),
-        layout::Stanza::Line { line, atoms } => parse_line(line, atoms),
-        _ => Ok(Item::Unknown(stanza)),
+        layout::Stanza::Line { line, atoms } => {
+            let mut inner_atoms = outer_prefix_atoms;
+            inner_atoms.extend_from_slice(&atoms);
+            parse_line(line, inner_atoms)
+        }
+        layout::Stanza::Block {
+            prefix_atoms,
+            nested,
+            l_brace,
+            r_brace,
+            ..
+        } => {
+            let ast = nested
+                .into_iter()
+                .map(|s| {
+                    let mut atoms = outer_prefix_atoms.clone();
+                    atoms.extend_from_slice(&prefix_atoms);
+                    parse_inner(s, atoms)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Item::Nested {
+                l_brace,
+                r_brace,
+                nested: ast,
+            })
+        }
     }
 }
 
@@ -174,7 +212,7 @@ fn parse_inner<'a>(stanza: layout::Stanza<'a>) -> Result<Item<'a>, Err> {
 pub fn parse(stanzas: Vec<layout::Stanza<'_>>) -> Result<Vec<Item<'_>>, Err> {
     let ast = stanzas
         .into_iter()
-        .map(|s| parse_inner(s))
+        .map(|s| parse_inner(s, Vec::new()))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(ast)
 }
@@ -253,6 +291,37 @@ mod tests {
             assert!(matches!(&ast[0], Item::Set(sv) if sv.expand_at_runtime()));
             assert!(matches!(&ast[0], Item::Set(sv) if sv.name() == "mod"));
         }
+
+        #[test]
+        fn block() {
+            let ast = parse_to_ast!("  set { $mod Mod1+Control\n $neow wwmm }");
+
+            assert_eq!(ast.len(), 1);
+            assert!(matches!(&ast[0], Item::Nested{ nested, .. } if nested.len() == 2));
+            if let Item::Nested { nested, .. } = &ast[0] {
+                assert!(matches!(
+                    &nested[0],
+                    Item::Set(SetVar {
+                        variable: Atom { content: AtomContent::Var(v), .. },
+                        values,
+                        ..
+                    }) if v == "mod" && values.len() == 1
+                ));
+                assert!(matches!(&nested[0], Item::Set(sv) if !sv.expand_at_runtime()));
+                assert!(matches!(&nested[0], Item::Set(s) if s.name() == "mod"));
+
+                assert!(matches!(
+                    &nested[1],
+                    Item::Set(SetVar {
+                        variable: Atom { content: AtomContent::Var(v), .. },
+                        values,
+                        ..
+                    }) if v == "neow" && values.len() == 1
+                ));
+                assert!(matches!(&nested[1], Item::Set(sv) if !sv.expand_at_runtime()));
+                assert!(matches!(&nested[1], Item::Set(s) if s.name() == "neow"));
+            }
+        }
     }
 
     mod exec {
@@ -268,6 +337,25 @@ mod tests {
                 let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
                 s == vec!["systemd-cat", "--stderr-priority=warning", "-t", "mako", "$something"]
             }));
+        }
+
+        #[test]
+        fn block() {
+            let ast =
+                parse_to_ast!("\nexec systemd-cat --stderr-priority=warning {\n -t mako $something\n -t ye ./ye.sh\n }");
+
+            assert_eq!(ast.len(), 1);
+            assert!(matches!(&ast[0], Item::Nested{ nested, .. } if nested.len() == 2));
+            if let Item::Nested { nested, .. } = &ast[0] {
+                assert!(matches!(&nested[0], Item::Exec(Exec { args, .. }) if {
+                    let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                    s == vec!["systemd-cat", "--stderr-priority=warning", "-t", "mako", "$something"]
+                }));
+                assert!(matches!(&nested[1], Item::Exec(Exec { args, .. }) if {
+                    let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                    s == vec!["systemd-cat", "--stderr-priority=warning", "-t", "ye", "./ye.sh"]
+                }));
+            }
         }
     }
 
@@ -299,7 +387,10 @@ mod tests {
             assert_eq!(ast.len(), 1);
             assert!(
                 matches!(&ast[0], Item::BindSym(BindSym { args, flags, keys, .. }) if {
-                    let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                    let s: Vec<String> = match args {
+                        Subset::Unresolved(a) => a.iter().map(|a| a.content.clone().into()).collect(),
+                        _ => todo!(),
+                    };
                     let k: Vec<String> = keys.iter().map(|a| a.clone().into()).collect();
                     s == vec!["exec", "yeet"] && flags.is_empty() && k == vec!["$mod", "Shift", "r"]
                 })

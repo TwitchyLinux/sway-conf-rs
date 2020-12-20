@@ -61,11 +61,12 @@ fn parse_keyset<'a>(atom: Atom) -> Result<Vec<Key>, &'static str> {
 }
 
 /// Parses a bindsym line.
-pub(super) fn parse<'a>(line: primitives::Line<'a>, atoms: Vec<Atom>) -> Result<Item<'a>, Err> {
+pub(super) fn parse<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<Item<'a>, Err> {
     let mut flags = FLAGS::empty();
     let mut args: Vec<Atom> = Vec::with_capacity(atoms.len());
+    let cmd = atoms.remove(0);
 
-    for atom in atoms.iter().skip(1) {
+    for atom in atoms.iter() {
         // If we have already finished parsing the switches,
         // just fill in the args vec.
         if args.len() > 0 {
@@ -137,9 +138,9 @@ pub(super) fn parse<'a>(line: primitives::Line<'a>, atoms: Vec<Atom>) -> Result<
     args.remove(0);
 
     Ok(Item::BindSym(BindSym {
-        line,
+        cmd,
         flags,
         keys,
-        args,
+        args: Subset::Unresolved(args),
     }))
 }
