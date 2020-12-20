@@ -1,6 +1,6 @@
 use crate::{layout, primitives};
 use primitives::{Atom, AtomContent};
-
+pub mod bind;
 use serde::{Deserialize, Serialize};
 
 /// A fatal error returned by the parser.
@@ -34,7 +34,7 @@ impl SetVar<'_> {
         unreachable!();
     }
 
-    /// The name of the variable.
+    /// The name of the variable, with leading dollar sign tokens removed.
     pub fn name(&self) -> String {
         if let AtomContent::Var(v) = &self.variable.content {
             if self.expand_at_runtime() {
@@ -54,10 +54,10 @@ pub struct Exec<'a> {
     args: Vec<Atom>,
 }
 
-impl Exec<'_> {
-    /// Returns the subshell invocation.
-    pub fn command(&self) -> Vec<Atom> {
-        todo!();
+impl<'a> Exec<'a> {
+    /// Returns the atoms making up the subshell invocation.
+    pub fn command_atoms(&'a self) -> &'a Vec<Atom> {
+        &self.args
     }
 }
 
@@ -68,8 +68,21 @@ pub struct SwitchMode<'a> {
     mode: Atom,
 }
 
-/// Represents a sway command. This may not correspond to a line
-/// in the config, in the event of line continuations or blocks.
+/// An expression describing a key binding.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct BindSym<'a> {
+    line: primitives::Line<'a>,
+    flags: bind::FLAGS,
+    keys: Vec<bind::Key>,
+    args: Vec<Atom>,
+}
+
+// impl<'a> BindSym<'a> {
+//
+// }
+
+/// Represents a sway command. This may not directly correspond to a
+/// line in the config, due to possible line continuations or blocks.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Item<'a> {
@@ -82,6 +95,8 @@ pub enum Item<'a> {
     Exec(Exec<'a>),
     /// A command to switch to the specified mode.
     SwitchMode(SwitchMode<'a>),
+    /// A command which maps a key combination to a sway command.
+    BindSym(BindSym<'a>),
     Unknown(Unknown<'a>),
 }
 
@@ -131,6 +146,7 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
                 })
             }
         }
+        cmd_matcher!("bindsym", at_least = 2) => bind::parse(line, atoms),
         cmd_matcher!("exec", at_least = 1) => Ok(Item::Exec(Exec {
             line,
             args: atoms[1..].to_vec(),
@@ -272,6 +288,25 @@ mod tests {
                 matches!(&ast[0], Item::SwitchMode(SwitchMode { mode, .. }) if {
                     let m: String = mode.content.clone().into();
                     m == "blueberry pie"
+                })
+            );
+        }
+    }
+
+    mod bindsym {
+        use super::*;
+
+        #[test]
+        fn cmd() {
+            let ast = parse_to_ast!("\nbindsym $mod+Shift+r exec yeet");
+            eprintln!("{:?}\n\n\n", ast);
+
+            assert_eq!(ast.len(), 1);
+            assert!(
+                matches!(&ast[0], Item::BindSym(BindSym { args, flags, keys, .. }) if {
+                    let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                    let k: Vec<String> = keys.iter().map(|a| a.clone().into()).collect();
+                    s == vec!["exec", "yeet"] && flags.is_empty() && k == vec!["$mod", "Shift", "r"]
                 })
             );
         }

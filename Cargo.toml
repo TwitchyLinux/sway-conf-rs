@@ -1,10 +1,12 @@
 [package]
-name = "sway-conf-rs"
+name = "sway-conf"
 version = "0.1.0"
 authors = ["Tom <twitchyliquid64@ciphersink.net>"]
 edition = "2018"
 
 [dependencies]
+bitfield = "0.13"
+bitflags = "1.2"
 nom = { version = "6", default-features = false, features = ["alloc"] }
 nom_locate = "3.0"
 serde = { version = "1.0", features = ["derive"] }

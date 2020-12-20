@@ -1,6 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::{escaped, is_not, tag, take_while, take_while_m_n};
 use nom::character::complete::{multispace0, none_of, one_of};
+use nom::combinator::eof;
 use nom::multi::{fold_many1, many0};
 use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
@@ -104,7 +105,13 @@ fn arg(s: Span) -> IResult<Span, (Span, String)> {
 }
 
 fn var(s: Span) -> IResult<Span, Span> {
-    preceded(tag("$"), is_not(" '\"\\[]"))(s)
+    let (s, val) = preceded(tag("$"), is_not(" '\"\\[],\n;+"))(s)?;
+    let mut ending = alt((tag(" "), tag("\t"), tag("\n"), tag("\r"), eof));
+
+    match ending(s) {
+        Ok(_) => Ok((s, val)),
+        Err(e) => Err(e),
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -642,6 +649,30 @@ mod tests {
             line: 1,
             column: 2,
         }];
+
+        let atoms = line(input).unwrap().1.atoms().expect("atom parsing failed");
+        assert_pretty!(atoms, want);
+    }
+
+    #[test]
+    fn atoms_bindings() {
+        let input = Span::new("set $alt+$mod+t");
+        let want = vec![
+            Atom {
+                content: AtomContent::Arg("set".to_string()),
+                start_offset: 0,
+                end_offset: 3,
+                line: 1,
+                column: 1,
+            },
+            Atom {
+                content: AtomContent::Arg("$alt+$mod+t".to_string()),
+                start_offset: 4,
+                end_offset: 15,
+                line: 1,
+                column: 5,
+            },
+        ];
 
         let atoms = line(input).unwrap().1.atoms().expect("atom parsing failed");
         assert_pretty!(atoms, want);

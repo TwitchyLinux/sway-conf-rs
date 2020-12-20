@@ -123,8 +123,8 @@
       },
       {
         "content": {
-          "kind": "var",
-          "atom": "mod+Shift+r"
+          "kind": "arg",
+          "atom": "$mod+Shift+r"
         },
         "start_offset": 87,
         "end_offset": 99,

@@ -1,3 +1,4 @@
+extern crate bitflags;
 extern crate nom;
 extern crate nom_locate;
 
