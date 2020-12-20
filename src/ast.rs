@@ -97,7 +97,8 @@ pub enum Item<'a> {
     SwitchMode(SwitchMode<'a>),
     /// A command which maps a key combination to a sway command.
     BindSym(BindSym<'a>),
-    Unknown(Unknown<'a>),
+    /// A stanza which is invalid or not yet supported.
+    Unknown(layout::Stanza<'a>),
 }
 
 macro_rules! cmd_matcher {
@@ -155,10 +156,7 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
             line,
             mode: atoms[1].clone(),
         })),
-        _ => Err(Err {
-            stanza: layout::Stanza::Line { line, atoms },
-            err: "unhandled line".to_string(),
-        }),
+        _ => Ok(Item::Unknown(layout::Stanza::Line { line, atoms })),
     }
 
     //Ok(Item::Comment(l))
@@ -168,10 +166,7 @@ fn parse_inner<'a>(stanza: layout::Stanza<'a>) -> Result<Item<'a>, Err> {
     match stanza {
         layout::Stanza::Comment(l) => Ok(Item::Comment(l)),
         layout::Stanza::Line { line, atoms } => parse_line(line, atoms),
-        layout::Stanza::Block { .. } => Err(Err {
-            stanza: stanza,
-            err: "blocks are not yet handled".to_string(),
-        }),
+        _ => Ok(Item::Unknown(stanza)),
     }
 }
 

@@ -24,6 +24,7 @@ bitflags::bitflags! {
 
 /// A key in a key binding.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Key {
     Var(String),
     Key(String),

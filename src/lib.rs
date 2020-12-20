@@ -2,6 +2,9 @@ extern crate bitflags;
 extern crate nom;
 extern crate nom_locate;
 
+use layout::{parse_stanza, Stanza};
+use nom::multi::many0;
+
 /// Units that make up a sway config, lacking semantics.
 pub mod primitives;
 pub use primitives::{Span, SpanOffset};
@@ -11,12 +14,17 @@ pub mod layout;
 /// Represents the command tree.
 pub mod ast;
 
+/// Parses the layout of the config represented by the provided
+/// string.
+pub fn parse_layout<'a>(input: &'a str) -> Result<Vec<Stanza<'a>>, ()> {
+    let (_, stanzas) = many0(parse_stanza)(Span::new(input)).map_err(|_e| ())?;
+    Ok(stanzas)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use layout::{parse_stanza, Stanza};
 
-    use nom::multi::many0;
     use pretty_assertions::assert_eq as assert_pretty;
     use std::path::PathBuf;
     use test_case::test_case;
