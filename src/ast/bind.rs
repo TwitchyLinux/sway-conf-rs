@@ -1,11 +1,11 @@
 use super::*;
 use crate::layout;
 use crate::primitives::{self, Atom, AtomContent};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 bitflags::bitflags! {
     /// Modifies how a binding works.
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize)]
     pub struct FLAGS: u32 {
         const RELEASE = (1 << 0);
         const LOCKED = (1 << 1); // keyboard only
@@ -23,7 +23,7 @@ bitflags::bitflags! {
 }
 
 /// A key in a key binding.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Key {
     Var(String),

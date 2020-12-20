@@ -7,22 +7,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Err<'a> {
     #[serde(borrow)]
-    stanza: layout::Stanza<'a>,
-    err: String,
+    pub stanza: layout::Stanza<'a>,
+    pub err: String,
 }
 
 /// A line which was not understood by the parser.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct Unknown<'a> {
-    line: primitives::Line<'a>,
+    pub line: primitives::Line<'a>,
 }
 
 /// An expression which sets a variable to a specific value.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct SetVar<'a> {
-    line: primitives::Line<'a>,
-    variable: Atom,
-    values: Vec<Atom>,
+    pub line: primitives::Line<'a>,
+    pub variable: Atom,
+    pub values: Vec<Atom>,
 }
 
 impl SetVar<'_> {
@@ -48,10 +48,10 @@ impl SetVar<'_> {
 }
 
 /// An expression runs the specified arguments in a shell subprocess.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct Exec<'a> {
-    line: primitives::Line<'a>,
-    args: Vec<Atom>,
+    pub line: primitives::Line<'a>,
+    pub args: Vec<Atom>,
 }
 
 impl<'a> Exec<'a> {
@@ -62,19 +62,19 @@ impl<'a> Exec<'a> {
 }
 
 /// An expression symbolizing switching to a specific mode.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct SwitchMode<'a> {
-    line: primitives::Line<'a>,
-    mode: Atom,
+    pub line: primitives::Line<'a>,
+    pub mode: Atom,
 }
 
 /// An expression describing a key binding.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct BindSym<'a> {
-    line: primitives::Line<'a>,
-    flags: bind::FLAGS,
-    keys: Vec<bind::Key>,
-    args: Vec<Atom>,
+    pub line: primitives::Line<'a>,
+    pub flags: bind::FLAGS,
+    pub keys: Vec<bind::Key>,
+    pub args: Vec<Atom>,
 }
 
 // impl<'a> BindSym<'a> {
@@ -83,7 +83,7 @@ pub struct BindSym<'a> {
 
 /// Represents a sway command. This may not directly correspond to a
 /// line in the config, due to possible line continuations or blocks.
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Item<'a> {
     /// A comment, leading with a pound symbol.
