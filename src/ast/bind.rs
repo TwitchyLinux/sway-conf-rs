@@ -141,6 +141,9 @@ pub(super) fn parse<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Res
         cmd,
         flags,
         keys,
-        args: Subset::Unresolved(args),
+        args: match super::parse_line(line, args.clone()) {
+            Ok(item) => Subset::Item(Box::new(item)),
+            Err(_) => Subset::Unresolved(args),
+        },
     }))
 }

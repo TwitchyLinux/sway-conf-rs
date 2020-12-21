@@ -47,16 +47,10 @@ fn dump_bindings(file: PathBuf) -> Result<(), String> {
     let mut table = Table::new();
     table.set_titles(row!["keys", "action"]);
     for item in ast {
-        if let ast::Item::BindSym(ast::BindSym {
-            keys,
-            args: ast::Subset::Unresolved(args),
-            ..
-        }) = item
-        {
+        if let ast::Item::BindSym(ast::BindSym { keys, args, .. }) = item {
             table.add_row(Row::new(vec![
-                Cell::new(
-                    &keys
-                        .into_iter()
+                Cell::new(&linebreak(
+                    keys.into_iter()
                         .fold(String::with_capacity(32), |mut acc, k| {
                             if acc.len() > 0 {
                                 acc.push_str(" + ");
@@ -65,18 +59,25 @@ fn dump_bindings(file: PathBuf) -> Result<(), String> {
                             acc.push_str(&k);
                             acc
                         }),
-                ),
-                Cell::new(&linebreak(args.into_iter().fold(
-                    String::with_capacity(32),
-                    |mut acc, k| {
-                        if acc.len() > 0 {
-                            acc.push_str(" ");
+                    18,
+                )),
+                Cell::new(&linebreak(
+                    match args {
+                        ast::Subset::Item(item) => serde_json::to_string_pretty(&item).unwrap(),
+                        ast::Subset::Unresolved(args) => {
+                            args.into_iter()
+                                .fold(String::with_capacity(32), |mut acc, k| {
+                                    if acc.len() > 0 {
+                                        acc.push_str(" ");
+                                    }
+                                    let k: String = k.content.into();
+                                    acc.push_str(&k);
+                                    acc
+                                })
                         }
-                        let k: String = k.content.into();
-                        acc.push_str(&k);
-                        acc
                     },
-                ))),
+                    55,
+                )),
             ]));
         }
     }
@@ -85,12 +86,15 @@ fn dump_bindings(file: PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-fn linebreak(input: String) -> String {
+fn linebreak(input: String, max_width: usize) -> String {
     let mut out = String::with_capacity(input.len() + 8);
     let mut width = 0;
     for word in input.split(' ') {
         width += word.len() + 1;
-        if width > 25 {
+        if let Some(amt) = word.find('\n') {
+            width = word.len() - amt;
+        }
+        if width > max_width {
             out.push('\n');
             width = 0;
         }
@@ -113,17 +117,19 @@ fn dump_shorthands(file: PathBuf) -> Result<(), String> {
             let v: String = s.variable.content.into();
             table.add_row(Row::new(vec![
                 Cell::new(&v),
-                Cell::new(&linebreak(s.values.into_iter().fold(
-                    String::with_capacity(32),
-                    |mut acc, k| {
-                        if acc.len() > 0 {
-                            acc.push_str(" ");
-                        }
-                        let k: String = k.content.into();
-                        acc.push_str(&k);
-                        acc
-                    },
-                ))),
+                Cell::new(&linebreak(
+                    s.values
+                        .into_iter()
+                        .fold(String::with_capacity(32), |mut acc, k| {
+                            if acc.len() > 0 {
+                                acc.push_str(" ");
+                            }
+                            let k: String = k.content.into();
+                            acc.push_str(&k);
+                            acc
+                        }),
+                    55,
+                )),
             ]));
         }
     }

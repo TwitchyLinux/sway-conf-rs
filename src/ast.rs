@@ -81,8 +81,32 @@ pub struct BindSym<'a> {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub enum Subset<'a> {
     Unresolved(Vec<Atom>),
-    #[serde(borrow)]
     Item(Box<Item<'a>>),
+}
+
+/// An expression whose command must be resolved at runtime.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub struct RuntimeResolvable {
+    pub cmd: Atom,
+    pub atoms: Vec<Atom>,
+}
+
+impl RuntimeResolvable {
+    /// The name of the variable, with leading dollar sign tokens removed.
+    pub fn name(&self) -> String {
+        if let AtomContent::Var(v) = &self.cmd.content {
+            v.to_string()
+        } else {
+            unreachable!();
+        }
+    }
+}
+
+/// An expression symbolizing inclusion of config from other files.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub struct Include {
+    pub cmd: Atom,
+    pub glob: Atom,
 }
 
 /// Represents a sway command. This may not directly correspond to a
@@ -107,6 +131,11 @@ pub enum Item<'a> {
         r_brace: Token<'a>,
         nested: Vec<Item<'a>>,
     },
+    /// A command which can only be resolved at runtime (because
+    /// the first atom references a variable).
+    RuntimeResolvable(RuntimeResolvable),
+    /// A command to include configuration from another file.
+    Include(Include),
     /// A stanza which is invalid or not yet supported.
     Unknown(layout::Stanza<'a>),
 }
@@ -123,15 +152,23 @@ macro_rules! cmd_matcher {
     };
 }
 
-fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<Item<'a>, Err> {
+pub(crate) fn parse_line<'a>(
+    line: primitives::Line<'a>,
+    mut atoms: Vec<Atom>,
+) -> Result<Item<'a>, Err> {
     let cmd = if atoms.len() > 0 {
-        if let AtomContent::Arg(s) = &atoms[0].content {
-            s.clone().to_lowercase()
-        } else {
-            return Err(Err {
-                stanza: layout::Stanza::Line { line, atoms },
-                err: "command was invalid".to_string(),
-            });
+        match &atoms[0].content {
+            AtomContent::Arg(s) => s.clone().to_lowercase(),
+            AtomContent::Var(_) => {
+                let cmd = atoms.remove(0);
+                return Ok(Item::RuntimeResolvable(RuntimeResolvable { cmd, atoms }));
+            }
+            _ => {
+                return Err(Err {
+                    stanza: layout::Stanza::Line { line, atoms },
+                    err: "command was invalid".to_string(),
+                })
+            }
         }
     } else {
         return Err(Err {
@@ -166,6 +203,10 @@ fn parse_line<'a>(line: primitives::Line<'a>, mut atoms: Vec<Atom>) -> Result<It
         cmd_matcher!("mode", exact = 2) => Ok(Item::SwitchMode(SwitchMode {
             cmd: atoms.remove(0),
             mode: atoms.remove(0),
+        })),
+        cmd_matcher!("include", exact = 2) => Ok(Item::Include(Include {
+            cmd: atoms.remove(0),
+            glob: atoms.remove(0),
         })),
         _ => Ok(Item::Unknown(layout::Stanza::Line { line, atoms })),
     }
@@ -382,19 +423,44 @@ mod tests {
         #[test]
         fn cmd() {
             let ast = parse_to_ast!("\nbindsym $mod+Shift+r exec yeet");
+            assert_eq!(ast.len(), 1);
+            assert!(
+                matches!(&ast[0], Item::BindSym(BindSym { args: Subset::Item(i), flags, .. })
+                    if flags.is_empty() && matches!(&**i, Item::Exec(Exec { args, .. }) if {
+                        let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                        s == vec!["yeet"]
+                    })
+                )
+            );
+        }
+
+        #[test]
+        fn block() {
+            let ast = parse_to_ast!(
+                "\nbindsym  {
+                $mod+Shift+r exec {
+                    yeet
+                }
+            }"
+            );
             eprintln!("{:?}\n\n\n", ast);
 
             assert_eq!(ast.len(), 1);
-            assert!(
-                matches!(&ast[0], Item::BindSym(BindSym { args, flags, keys, .. }) if {
-                    let s: Vec<String> = match args {
-                        Subset::Unresolved(a) => a.iter().map(|a| a.content.clone().into()).collect(),
-                        _ => todo!(),
-                    };
-                    let k: Vec<String> = keys.iter().map(|a| a.clone().into()).collect();
-                    s == vec!["exec", "yeet"] && flags.is_empty() && k == vec!["$mod", "Shift", "r"]
-                })
-            );
+            assert!(matches!(&ast[0], Item::Nested{ nested, .. } if nested.len() == 1));
+            if let Item::Nested { nested, .. } = &ast[0] {
+                assert_eq!(nested.len(), 1);
+                if let Item::Nested { nested, .. } = &nested[0] {
+                    assert_eq!(nested.len(), 1);
+                    assert!(
+                        matches!(&nested[0], Item::BindSym(BindSym { args: Subset::Item(i), flags, .. })
+                            if flags.is_empty() && matches!(&**i, Item::Exec(Exec { args, .. }) if {
+                                let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                                s == vec!["yeet"]
+                            })
+                        )
+                    );
+                }
+            }
         }
     }
 }
