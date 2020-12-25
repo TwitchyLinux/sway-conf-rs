@@ -173,6 +173,15 @@ impl<'a> Item<'a> {
             Item::Unknown(_) => Ok(visitor),
             Item::Include(_) => Ok(visitor),
 
+            Item::Include(Include { resolved, .. }) => {
+                for i in &mut resolved.iter_mut() {
+                    for n in i.ast.iter_mut() {
+                        visitor = n.traverse_inner(visitor)?;
+                        visitor(n).map_err(|e| TraversalError::Visit(e))?;
+                    }
+                }
+                Ok(visitor)
+            }
             Item::BindSym(bind_sym) => match &mut bind_sym.args {
                 Subset::Unresolved(_) => Ok(visitor),
                 Subset::Item(i) => {

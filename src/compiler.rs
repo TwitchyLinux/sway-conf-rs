@@ -64,7 +64,10 @@ mod tests {
         );
 
         {
-            let stanzas = parse_layout("include ../../testdata/*.sway\ninclude ../compiler/../../testdata/*.sway").expect("parsing failed");
+            let stanzas = parse_layout(
+                "include ../../testdata/*.sway\ninclude ../compiler/../../testdata/*.sway",
+            )
+            .expect("parsing failed");
             let mut ast = ast::parse(stanzas).expect("AST build failed");
 
             super::do_pass(
