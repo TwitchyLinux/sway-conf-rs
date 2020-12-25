@@ -1,7 +1,8 @@
 use crate::{layout, primitives};
 use primitives::{Atom, AtomContent, Token};
-pub mod bind;
 use serde::{Deserialize, Serialize};
+
+pub mod bind;
 
 /// A fatal error returned by the parser.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -23,6 +24,7 @@ pub struct SetVar {
     pub cmd: Atom,
     pub variable: Atom,
     pub values: Vec<Atom>,
+    pub resolved_values: Option<Vec<Atom>>,
 }
 
 impl SetVar {
@@ -52,6 +54,7 @@ impl SetVar {
 pub struct Exec {
     pub cmd: Atom,
     pub args: Vec<Atom>,
+    pub resolved_args: Option<Vec<Atom>>,
 }
 
 impl Exec {
@@ -74,6 +77,7 @@ pub struct BindSym<'a> {
     pub cmd: Atom,
     pub flags: bind::FLAGS,
     pub keys: Vec<bind::Key>,
+    pub resolved_keys: Option<Vec<bind::Key>>,
     pub args: Subset<'a>,
 }
 
@@ -86,12 +90,13 @@ pub enum Subset<'a> {
 
 /// An expression whose command must be resolved at runtime.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub struct RuntimeResolvable {
+pub struct RuntimeResolvable<'a> {
     pub cmd: Atom,
     pub atoms: Vec<Atom>,
+    pub resolved_item: Option<Box<Item<'a>>>,
 }
 
-impl RuntimeResolvable {
+impl RuntimeResolvable<'_> {
     /// The name of the variable, with leading dollar sign tokens removed.
     pub fn name(&self) -> String {
         if let AtomContent::Var(v) = &self.cmd.content {
@@ -102,11 +107,19 @@ impl RuntimeResolvable {
     }
 }
 
+/// A subtree from a successfully-included configuration file.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+pub struct ResolvedInclude<'a> {
+    pub path: std::path::PathBuf,
+    pub ast: Vec<Item<'a>>,
+}
+
 /// An expression symbolizing inclusion of config from other files.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
-pub struct Include {
+pub struct Include<'a> {
     pub cmd: Atom,
     pub glob: Atom,
+    pub resolved: Vec<ResolvedInclude<'a>>,
 }
 
 /// Represents a sway command. This may not directly correspond to a
@@ -133,11 +146,60 @@ pub enum Item<'a> {
     },
     /// A command which can only be resolved at runtime (because
     /// the first atom references a variable).
-    RuntimeResolvable(RuntimeResolvable),
+    RuntimeResolvable(RuntimeResolvable<'a>),
     /// A command to include configuration from another file.
-    Include(Include),
+    Include(Include<'a>),
     /// A stanza which is invalid or not yet supported.
     Unknown(layout::Stanza<'a>),
+}
+
+#[derive(Debug)]
+pub enum TraversalError<E> {
+    Visit(E),
+}
+
+impl<'a> Item<'a> {
+    fn traverse_inner<'b, E, F>(&mut self, mut visitor: F) -> Result<F, TraversalError<E>>
+    where
+        F: FnMut(&mut Item) -> Result<(), E> + 'b,
+    {
+        match self {
+            // Invariants with no interior nodes
+            Item::Comment(_) => Ok(visitor),
+            Item::Set(_) => Ok(visitor),
+            Item::Exec(_) => Ok(visitor),
+            Item::SwitchMode(_) => Ok(visitor),
+            Item::RuntimeResolvable(_) => Ok(visitor),
+            Item::Unknown(_) => Ok(visitor),
+            Item::Include(_) => Ok(visitor),
+
+            Item::BindSym(bind_sym) => match &mut bind_sym.args {
+                Subset::Unresolved(_) => Ok(visitor),
+                Subset::Item(i) => {
+                    visitor(i.as_mut()).map_err(|e| TraversalError::Visit(e))?;
+                    Ok(visitor)
+                }
+            },
+            Item::Nested { nested, .. } => {
+                for i in &mut nested.iter_mut() {
+                    visitor = i.traverse_inner(visitor)?;
+                    visitor(i).map_err(|e| TraversalError::Visit(e))?;
+                }
+                Ok(visitor)
+            }
+        }
+    }
+
+    /// Calls the provided closure on all nested items and then itself.
+    pub fn visit<'b, E, F>(&mut self, visitor: F) -> Result<(), TraversalError<E>>
+    where
+        F: FnMut(&mut Item) -> Result<(), E> + 'b,
+    {
+        let mut visitor = self.traverse_inner(visitor)?;
+
+        visitor(self).map_err(|e| TraversalError::Visit(e))?;
+        Ok(())
+    }
 }
 
 macro_rules! cmd_matcher {
@@ -161,7 +223,11 @@ pub(crate) fn parse_line<'a>(
             AtomContent::Arg(s) => s.clone().to_lowercase(),
             AtomContent::Var(_) => {
                 let cmd = atoms.remove(0);
-                return Ok(Item::RuntimeResolvable(RuntimeResolvable { cmd, atoms }));
+                return Ok(Item::RuntimeResolvable(RuntimeResolvable {
+                    cmd,
+                    atoms,
+                    resolved_item: None,
+                }));
             }
             _ => {
                 return Err(Err {
@@ -187,6 +253,7 @@ pub(crate) fn parse_line<'a>(
                     cmd,
                     variable,
                     values: atoms,
+                    resolved_values: None, // Populated during compilation
                 }))
             } else {
                 Err(Err {
@@ -199,6 +266,7 @@ pub(crate) fn parse_line<'a>(
         cmd_matcher!("exec", at_least = 1) => Ok(Item::Exec(Exec {
             cmd: atoms.remove(0),
             args: atoms,
+            resolved_args: None, // Populated during compilation
         })),
         cmd_matcher!("mode", exact = 2) => Ok(Item::SwitchMode(SwitchMode {
             cmd: atoms.remove(0),
@@ -207,6 +275,7 @@ pub(crate) fn parse_line<'a>(
         cmd_matcher!("include", exact = 2) => Ok(Item::Include(Include {
             cmd: atoms.remove(0),
             glob: atoms.remove(0),
+            resolved: Vec::new(), // Populated during compilation
         })),
         _ => Ok(Item::Unknown(layout::Stanza::Line { line, atoms })),
     }
@@ -443,7 +512,6 @@ mod tests {
                 }
             }"
             );
-            eprintln!("{:?}\n\n\n", ast);
 
             assert_eq!(ast.len(), 1);
             assert!(matches!(&ast[0], Item::Nested{ nested, .. } if nested.len() == 1));
@@ -462,5 +530,36 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn visit() {
+        let mut ast = parse_to_ast!(
+            "\nbindsym  {
+            $mod+Shift+r exec {
+                yeet
+            }
+        }"
+        );
+
+        assert_eq!(ast.len(), 1);
+        let mut seen_exec = false;
+        ast[0]
+            .visit::<(), _>(|i| {
+                if let Item::Exec(e) = i {
+                    seen_exec = true;
+                    assert_eq!(
+                        e.args
+                            .iter()
+                            .map(|a| a.content.clone().into())
+                            .collect::<Vec<String>>(),
+                        vec!["yeet"]
+                    );
+                };
+                Ok(())
+            })
+            .expect("success");
+
+        assert!(seen_exec);
     }
 }

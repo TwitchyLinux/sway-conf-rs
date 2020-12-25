@@ -1,0 +1,4 @@
+set $bindsym bindsym --to-code
+set $mod Mod4
+
+include inc_*.sway

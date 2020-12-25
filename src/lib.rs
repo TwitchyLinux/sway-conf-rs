@@ -14,6 +14,10 @@ pub mod layout;
 /// Represents the command tree.
 pub mod ast;
 
+/// Interprets the command tree to resolve unknowns in the context
+/// of the current system.
+pub mod compiler;
+
 /// Parses the layout of the config represented by the provided
 /// string.
 pub fn parse_layout<'a>(input: &'a str) -> Result<Vec<Stanza<'a>>, ()> {

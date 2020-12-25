@@ -15,6 +15,7 @@ fn main() {
     if let Err(e) = match args.cmd {
         Cmd::dumpLayout { file } => dump_layout(file),
         Cmd::dumpAST { file } => dump_ast(file),
+        Cmd::dumpCompiledAST { file } => dump_compiled_ast(file),
         Cmd::dumpBindings { file } => dump_bindings(file),
         Cmd::dumpShorthands { file } => dump_shorthands(file),
     } {
@@ -33,7 +34,18 @@ fn dump_layout(file: PathBuf) -> Result<(), String> {
 fn dump_ast(file: PathBuf) -> Result<(), String> {
     let content = read_to_string(file).map_err(|e| format!("IO error: {:?}", e))?;
     let c = parse_layout(&content).map_err(|e| format!("parse error: {:?}", e))?;
-    let ast = ast::parse(c).map_err(|e| format!("AST parse error: {:?}", e))?;
+    let ast = ast::parse(c).map_err(|e| format!("AST build error: {:?}", e))?;
+    serde_json::to_writer_pretty(stdout(), &ast).map_err(|e| format!("output error: {:?}", e))?;
+    println!();
+    Ok(())
+}
+
+fn dump_compiled_ast(file: PathBuf) -> Result<(), String> {
+    let content = read_to_string(file.clone()).map_err(|e| format!("IO error: {:?}", e))?;
+    let c = parse_layout(&content).map_err(|e| format!("parse error: {:?}", e))?;
+    let mut ast = ast::parse(c).map_err(|e| format!("AST build error: {:?}", e))?;
+    compiler::compile(&mut ast, file).map_err(|e| format!("compilation error: {:?}", e))?;
+
     serde_json::to_writer_pretty(stdout(), &ast).map_err(|e| format!("output error: {:?}", e))?;
     println!();
     Ok(())
@@ -42,7 +54,7 @@ fn dump_ast(file: PathBuf) -> Result<(), String> {
 fn dump_bindings(file: PathBuf) -> Result<(), String> {
     let content = read_to_string(file).map_err(|e| format!("IO error: {:?}", e))?;
     let c = parse_layout(&content).map_err(|e| format!("parse error: {:?}", e))?;
-    let ast = ast::parse(c).map_err(|e| format!("AST parse error: {:?}", e))?;
+    let ast = ast::parse(c).map_err(|e| format!("AST build error: {:?}", e))?;
 
     let mut table = Table::new();
     table.set_titles(row!["keys", "action"]);
@@ -108,7 +120,7 @@ fn linebreak(input: String, max_width: usize) -> String {
 fn dump_shorthands(file: PathBuf) -> Result<(), String> {
     let content = read_to_string(file).map_err(|e| format!("IO error: {:?}", e))?;
     let c = parse_layout(&content).map_err(|e| format!("parse error: {:?}", e))?;
-    let ast = ast::parse(c).map_err(|e| format!("AST parse error: {:?}", e))?;
+    let ast = ast::parse(c).map_err(|e| format!("AST build error: {:?}", e))?;
 
     let mut table = Table::new();
     table.set_titles(row!["name", "values"]);
@@ -145,6 +157,8 @@ pub enum Cmd {
     dumpLayout { file: PathBuf },
     /// Dump the AST of the given sway config.
     dumpAST { file: PathBuf },
+    /// Dump the compiled AST of the given sway config.
+    dumpCompiledAST { file: PathBuf },
     /// Dump the key bindings of the given sway config.
     dumpBindings { file: PathBuf },
     /// Dump the variables in the given sway config.
