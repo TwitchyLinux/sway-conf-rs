@@ -7,8 +7,17 @@ mod includes;
 
 #[derive(Debug)]
 pub enum Err {
-    BadInclude(ParseError<<AtomicDefaultBuilder<String> as Builder>::Error>),
+    /// Failed to build the layout for a file resolved from an include statement.
+    IncludeParse(PathBuf),
+    /// Failed to build the AST for a file resolved from an include statement.
+    IncludeBadAST {
+        path: PathBuf,
+        err: crate::ast::Err<'static>,
+    },
+    /// IO error, typically when reading an include file.
     IO(std::io::Error),
+    /// Failed to interpret the path, command, or glob argument of an include statement.
+    IncludeBadGlob(ParseError<<AtomicDefaultBuilder<String> as Builder>::Error>),
 }
 
 /// A single iteration over the AST, populating one class of information.
@@ -23,9 +32,14 @@ fn do_pass<'a, P: Pass>(mut pass: P, config: &mut Vec<Item<'a>>, path: PathBuf) 
 }
 
 /// Fills in information about the provided config in the context of the running system.
+///
+/// Note: As part of resolving include files, compile may temporarily switch the current
+/// working directory of the process. Callers should not perform any operation which relies
+/// on a stable working directory concurrently to `compile()`. Unfortunately, this means
+/// that compile() may erroneously fail if run in parallel.
 pub fn compile<'a>(config: &mut Vec<Item<'a>>, path: PathBuf) -> Result<(), Err> {
-    do_pass(includes::ResolverPass, config, path)?;
-
+    do_pass(includes::ResolverPass, config, path.clone())?;
+    do_pass(includes::InlinerPass, config, path)?;
     Ok(())
 }
 
@@ -33,8 +47,15 @@ pub fn compile<'a>(config: &mut Vec<Item<'a>>, path: PathBuf) -> Result<(), Err>
 mod tests {
     use crate::*;
 
+    use std::sync::Mutex;
+    lazy_static::lazy_static! {
+        static ref TEST_MUTEX: Mutex<()> = Mutex::new(());
+    }
+
     #[test]
     fn include_resolver() {
+        let _guard = TEST_MUTEX.lock().unwrap();
+
         let cwd = std::env::current_dir()
             .expect("failed reading CWD")
             .to_path_buf();
@@ -111,6 +132,23 @@ mod tests {
             std::env::current_dir()
                 .expect("failed reading CWD")
                 .to_path_buf()
+        );
+    }
+
+    #[test]
+    fn include_inliner() {
+        let _guard = TEST_MUTEX.lock().unwrap();
+        let stanzas = parse_layout("include inc_*.sway").expect("parsing failed");
+        let mut ast = ast::parse(stanzas).expect("AST build failed");
+
+        super::compile(&mut ast, "testdata/inc_base.sway".into()).expect("compilation failed");
+
+        eprintln!("ast: {:?}\n\n", ast);
+        assert_eq!(ast.len(), 1);
+        assert!(
+            matches!(&ast[0], ast::Item::Include(ast::Include { resolved, .. }) if resolved.len() == 2 &&
+                resolved[0].ast.len() == 0 && resolved[1].ast.len() > 0
+            )
         );
     }
 }

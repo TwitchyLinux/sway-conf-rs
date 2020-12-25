@@ -10,7 +10,7 @@ use std::path::PathBuf;
 pub(super) struct ResolverPass;
 
 impl super::Pass for ResolverPass {
-    const NAME: &'static str = "includes";
+    const NAME: &'static str = "includes-resolver";
 
     fn exec<'a>(&mut self, config: &mut Vec<Item<'a>>, path: PathBuf) -> Result<(), Err> {
         let conf_dir = path.parent();
@@ -29,7 +29,7 @@ impl super::Pass for ResolverPass {
                     // // bail here if parsing fails.
                     // let lexer = Lexer::new(glob.chars());
                     // let mut parser = Parser::with_builder(lexer, RcBuilder::new());
-                    // let include_ast = parser.complete_command().map_err(|e| Err::BadInclude(e))?;
+                    // let include_ast = parser.complete_command().map_err(|e| Err::IncludeBadGlob(e))?;
 
                     if let Some(parent_dir) = conf_dir {
                         std::env::set_current_dir({
@@ -63,6 +63,80 @@ impl super::Pass for ResolverPass {
                     }
 
                     undo_wd(cwd.clone());
+                };
+                Ok(())
+            })
+            .map_err(|e| match e {
+                TraversalError::Visit(e) => e,
+            })?;
+        }
+
+        Ok(())
+    }
+}
+
+use std::collections::HashMap;
+
+pub(super) struct InlinerPass;
+
+impl InlinerPass {
+    fn handle_include_stmt<'a>(
+        mut already_loaded: &mut HashMap<PathBuf, ()>,
+        include: &mut Include<'a>,
+    ) -> Result<(), Err> {
+        for resolved in include.resolved.iter_mut() {
+            if already_loaded.get(&resolved.path).is_some() {
+                continue;
+            }
+            already_loaded.insert(resolved.path.clone(), ());
+
+            use std::fs::read_to_string;
+            // TODO: Lifetime this shit instead of being a lazy sausage
+            let content = Box::leak(
+                read_to_string(&resolved.path)
+                    .map_err(|e| Err::IO(e))?
+                    .into_boxed_str(),
+            );
+            let layout = crate::parse_layout(content)
+                .map_err(|_e| Err::IncludeParse(resolved.path.clone()))?;
+            let mut ast = parse(layout).map_err(|e| Err::IncludeBadAST {
+                path: resolved.path.clone(),
+                err: e,
+            })?;
+
+            // Include any files that may have been referenced.
+            super::do_pass(ResolverPass, &mut ast, resolved.path.clone())?;
+            for i in ast.iter_mut() {
+                let already_loaded = &mut already_loaded;
+                i.visit::<Err, _>(move |i| {
+                    if let Item::Include(i) = i {
+                        InlinerPass::handle_include_stmt(already_loaded, i)?;
+                    };
+                    Ok(())
+                })
+                .map_err(|e| match e {
+                    TraversalError::Visit(e) => e,
+                })?;
+            }
+
+            resolved.ast = ast;
+        }
+        Ok(())
+    }
+}
+
+impl super::Pass for InlinerPass {
+    const NAME: &'static str = "includes-inliner";
+
+    fn exec<'a>(&mut self, config: &mut Vec<Item<'a>>, path: PathBuf) -> Result<(), Err> {
+        let mut already_loaded: HashMap<PathBuf, ()> = HashMap::new();
+        already_loaded.insert(path.canonicalize().unwrap(), ());
+
+        for i in config.iter_mut() {
+            let already_loaded = &mut already_loaded;
+            i.visit::<Err, _>(move |i| {
+                if let Item::Include(i) = i {
+                    InlinerPass::handle_include_stmt(already_loaded, i)?;
                 };
                 Ok(())
             })

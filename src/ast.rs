@@ -169,9 +169,7 @@ impl<'a> Item<'a> {
             Item::Set(_) => Ok(visitor),
             Item::Exec(_) => Ok(visitor),
             Item::SwitchMode(_) => Ok(visitor),
-            Item::RuntimeResolvable(_) => Ok(visitor),
             Item::Unknown(_) => Ok(visitor),
-            Item::Include(_) => Ok(visitor),
 
             Item::Include(Include { resolved, .. }) => {
                 for i in &mut resolved.iter_mut() {
@@ -189,6 +187,12 @@ impl<'a> Item<'a> {
                     Ok(visitor)
                 }
             },
+            Item::RuntimeResolvable(RuntimeResolvable { resolved_item, .. }) => {
+                if let Some(i) = resolved_item {
+                    visitor(i.as_mut()).map_err(|e| TraversalError::Visit(e))?;
+                }
+                Ok(visitor)
+            }
             Item::Nested { nested, .. } => {
                 for i in &mut nested.iter_mut() {
                     visitor = i.traverse_inner(visitor)?;
