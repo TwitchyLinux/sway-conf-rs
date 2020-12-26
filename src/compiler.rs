@@ -4,6 +4,7 @@ use conch_parser::parse::ParseError;
 use std::path::PathBuf;
 
 mod includes;
+mod vars;
 
 #[derive(Debug)]
 pub enum Err {
@@ -39,7 +40,8 @@ fn do_pass<'a, P: Pass>(mut pass: P, config: &mut Vec<Item<'a>>, path: PathBuf) 
 /// that compile() may erroneously fail if run in parallel.
 pub fn compile<'a>(config: &mut Vec<Item<'a>>, path: PathBuf) -> Result<(), Err> {
     do_pass(includes::ResolverPass, config, path.clone())?;
-    do_pass(includes::InlinerPass, config, path)?;
+    do_pass(includes::InlinerPass, config, path.clone())?;
+    do_pass(vars::Propergation, config, path)?;
     Ok(())
 }
 
@@ -143,11 +145,32 @@ mod tests {
 
         super::compile(&mut ast, "testdata/inc_base.sway".into()).expect("compilation failed");
 
-        eprintln!("ast: {:?}\n\n", ast);
         assert_eq!(ast.len(), 1);
         assert!(
             matches!(&ast[0], ast::Item::Include(ast::Include { resolved, .. }) if resolved.len() == 2 &&
                 resolved[0].ast.len() == 0 && resolved[1].ast.len() > 0
+            )
+        );
+    }
+
+    #[test]
+    fn setvar_propergation() {
+        let _guard = TEST_MUTEX.lock().unwrap();
+        let stanzas =
+            parse_layout("set $thing1 Mod1\nset $thing2 $thing1").expect("parsing failed");
+        let mut ast = ast::parse(stanzas).expect("AST build failed");
+
+        super::do_pass(
+            super::vars::Propergation,
+            &mut ast,
+            "src/compiler/test.sway".into(),
+        )
+        .expect("pass failed");
+
+        assert_eq!(ast.len(), 2);
+        assert!(
+            matches!(&ast[1], ast::Item::Set(ast::SetVar { resolved_values: Some(v), .. }) if v.len() == 1 &&
+                v[0].content == crate::primitives::AtomContent::Arg("Mod1".to_string())
             )
         );
     }
