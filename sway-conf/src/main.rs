@@ -93,12 +93,13 @@ fn dump_bindings(file: PathBuf) -> Result<(), String> {
     compiler::compile(&mut ast, file).map_err(|e| format!("compilation error: {:?}", e))?;
 
     let mut table = Table::new();
-    table.set_titles(row!["keys", "action"]);
+    table.set_titles(row!["keys", "mode", "action"]);
 
     for mut i in ast {
         let table = &mut table;
         i.visit::<(), _>(move |item| {
             if let ast::Item::BindSym(ast::BindSym {
+                mode,
                 keys,
                 resolved_keys,
                 args,
@@ -107,6 +108,11 @@ fn dump_bindings(file: PathBuf) -> Result<(), String> {
             {
                 table.add_row(Row::new(vec![
                     Cell::new(&linebreak(key_str(keys, resolved_keys), 18)),
+                    Cell::new(&linebreak(
+                        mode.as_ref()
+                            .map_or("default".to_string(), |a| a.content.clone().into()),
+                        12,
+                    )),
                     Cell::new(&linebreak(
                         match args {
                             ast::Subset::Item(item) => serde_json::to_string_pretty(&item).unwrap(),

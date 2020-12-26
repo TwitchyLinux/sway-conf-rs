@@ -75,6 +75,7 @@ pub struct SwitchMode {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct BindSym<'a> {
     pub cmd: Atom,
+    pub mode: Option<Atom>,
     pub flags: bind::FLAGS,
     pub keys: Vec<bind::Key>,
     pub resolved_keys: Option<Vec<bind::Key>>,
@@ -217,14 +218,17 @@ impl<'a> Item<'a> {
 }
 
 macro_rules! cmd_matcher {
+    ($cmd:literal, at_least=3) => {
+        ($cmd, true, true, _)
+    };
     ($cmd:literal, at_least=2) => {
-        ($cmd, true, _)
+        ($cmd, _, true, _)
     };
     ($cmd:literal, at_least=1) => {
-        ($cmd, _, _)
+        ($cmd, _, _, _)
     };
     ($cmd:literal, exact=$sz:literal) => {
-        ($cmd, _, $sz)
+        ($cmd, _, _, $sz)
     };
 }
 
@@ -258,8 +262,13 @@ pub(crate) fn parse_line<'a>(
         });
     };
 
-    // (cmd as lowercase, at-least-2-args, exact-len)
-    match (cmd.as_str(), atoms.len() >= 2, atoms.len()) {
+    // (cmd as lowercase, at-least-3-args, at-least-2-args, exact-len)
+    match (
+        cmd.as_str(),
+        atoms.len() >= 3,
+        atoms.len() >= 2,
+        atoms.len(),
+    ) {
         cmd_matcher!("set", at_least = 2) => {
             let cmd = atoms.remove(0);
             if let AtomContent::Var(_) = &atoms[0].content {
@@ -292,6 +301,14 @@ pub(crate) fn parse_line<'a>(
             glob: atoms.remove(0),
             resolved: Vec::new(), // Populated during compilation
         })),
+        cmd_matcher!("mode", at_least = 3) => match parse_line(line.clone(), atoms[2..].to_vec()) {
+            Ok(Item::Set(s)) => Ok(Item::Set(s)),
+            Ok(Item::BindSym(mut b)) => {
+                b.mode = Some(atoms[1].clone());
+                Ok(Item::BindSym(b))
+            }
+            _ => Ok(Item::Unknown(layout::Stanza::Line { line, atoms })),
+        },
         _ => Ok(Item::Unknown(layout::Stanza::Line { line, atoms })),
     }
 
@@ -499,6 +516,18 @@ mod tests {
                 })
             );
         }
+
+        #[test]
+        fn set() {
+            let ast = parse_to_ast!("\nmode \"blueberry pie\" set $color red");
+
+            assert_eq!(ast.len(), 1);
+            assert!(matches!(&ast[0], Item::Set(SetVar {
+                    variable: Atom { content: AtomContent::Var(v), .. },
+                    values,
+                    ..
+                }) if v == "color" && values.len() == 1));
+        }
     }
 
     mod bindsym {
@@ -543,6 +572,30 @@ mod tests {
                         )
                     );
                 }
+            }
+        }
+
+        #[test]
+        fn mode_block() {
+            let ast = parse_to_ast!(
+                "mode \"resize\" {
+                    bindsym $mod+r exec yeet
+                }"
+            );
+
+            assert_eq!(ast.len(), 1);
+            assert!(matches!(&ast[0], Item::Nested{ nested, .. } if nested.len() == 1));
+            if let Item::Nested { nested, .. } = &ast[0] {
+                assert_eq!(nested.len(), 1);
+                eprintln!("{:?}", nested[0]);
+                assert!(
+                    matches!(&nested[0], Item::BindSym(BindSym { args: Subset::Item(i), mode: Some(Atom{content: AtomContent::Arg(m), ..}), flags, .. })
+                        if flags.is_empty() && m == "resize" && matches!(&**i, Item::Exec(Exec { args, .. }) if {
+                            let s: Vec<String> = args.iter().map(|a| a.content.clone().into()).collect();
+                            s == vec!["yeet"]
+                        })
+                    )
+                );
             }
         }
     }
