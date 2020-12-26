@@ -174,4 +174,51 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn bindsym_keys_propergation() {
+        let _guard = TEST_MUTEX.lock().unwrap();
+        let stanzas =
+            parse_layout("set $mod Mod4\nbindsym $mod+Shift+r reload").expect("parsing failed");
+        let mut ast = ast::parse(stanzas).expect("AST build failed");
+
+        super::do_pass(
+            super::vars::Propergation,
+            &mut ast,
+            "src/compiler/test.sway".into(),
+        )
+        .expect("pass failed");
+
+        assert_eq!(ast.len(), 2);
+        assert!(
+            matches!(&ast[1], ast::Item::BindSym(ast::BindSym { resolved_keys: Some(k), .. }) if k.len() == 3 &&
+                k[0] == ast::bind::Key::Key("Mod4".to_string())
+            )
+        );
+    }
+
+    #[test]
+    fn runtime_resolvable_propergation() {
+        let _guard = TEST_MUTEX.lock().unwrap();
+        let stanzas = parse_layout(
+            "set $bindsym bindsym --to-code\nset $mod Mod4\n$bindsym $mod+Shift+r reload",
+        )
+        .expect("parsing failed");
+        let mut ast = ast::parse(stanzas).expect("AST build failed");
+
+        super::do_pass(
+            super::vars::Propergation,
+            &mut ast,
+            "src/compiler/test.sway".into(),
+        )
+        .expect("pass failed");
+
+        assert_eq!(ast.len(), 3);
+        assert!(
+            matches!(&ast[2], ast::Item::RuntimeResolvable(ast::RuntimeResolvable { resolved_item: Some(i), .. }) if
+                matches!(i.as_ref(), ast::Item::BindSym(ast::BindSym{ resolved_keys: Some(k), ..}) if
+                    k.len() == 3 && k[0] == ast::bind::Key::Key("Mod4".to_string()))
+            )
+        );
+    }
 }

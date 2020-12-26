@@ -92,6 +92,7 @@ pub enum Subset<'a> {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct RuntimeResolvable<'a> {
     pub cmd: Atom,
+    pub line: primitives::Line<'a>,
     pub atoms: Vec<Atom>,
     pub resolved_item: Option<Box<Item<'a>>>,
 }
@@ -238,6 +239,7 @@ pub(crate) fn parse_line<'a>(
                 let cmd = atoms.remove(0);
                 return Ok(Item::RuntimeResolvable(RuntimeResolvable {
                     cmd,
+                    line,
                     atoms,
                     resolved_item: None,
                 }));

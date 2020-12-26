@@ -51,47 +51,84 @@ fn dump_compiled_ast(file: PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+fn key_str(
+    keys: &mut Vec<ast::bind::Key>,
+    resolved_keys: &mut Option<Vec<ast::bind::Key>>,
+) -> String {
+    let mut s = keys
+        .into_iter()
+        .fold(String::with_capacity(32), |mut acc, k| {
+            if acc.len() > 0 {
+                acc.push_str(" + ");
+            }
+            let k: String = k.clone().into();
+            acc.push_str(&k);
+            acc
+        });
+
+    if let Some(keys) = resolved_keys {
+        s.push_str("\n\n");
+        s.push_str(
+            &keys
+                .into_iter()
+                .fold(String::with_capacity(32), |mut acc, k| {
+                    if acc.len() > 0 {
+                        acc.push_str(" + ");
+                    }
+                    let k: String = k.clone().into();
+                    acc.push_str(&k);
+                    acc
+                }),
+        );
+        s
+    } else {
+        s
+    }
+}
+
 fn dump_bindings(file: PathBuf) -> Result<(), String> {
-    let content = read_to_string(file).map_err(|e| format!("IO error: {:?}", e))?;
+    let content = read_to_string(file.clone()).map_err(|e| format!("IO error: {:?}", e))?;
     let c = parse_layout(&content).map_err(|e| format!("parse error: {:?}", e))?;
-    let ast = ast::parse(c).map_err(|e| format!("AST build error: {:?}", e))?;
+    let mut ast = ast::parse(c).map_err(|e| format!("AST build error: {:?}", e))?;
+    compiler::compile(&mut ast, file).map_err(|e| format!("compilation error: {:?}", e))?;
 
     let mut table = Table::new();
     table.set_titles(row!["keys", "action"]);
-    for item in ast {
-        if let ast::Item::BindSym(ast::BindSym { keys, args, .. }) = item {
-            table.add_row(Row::new(vec![
-                Cell::new(&linebreak(
-                    keys.into_iter()
-                        .fold(String::with_capacity(32), |mut acc, k| {
-                            if acc.len() > 0 {
-                                acc.push_str(" + ");
+
+    for mut i in ast {
+        let table = &mut table;
+        i.visit::<(), _>(move |item| {
+            if let ast::Item::BindSym(ast::BindSym {
+                keys,
+                resolved_keys,
+                args,
+                ..
+            }) = item
+            {
+                table.add_row(Row::new(vec![
+                    Cell::new(&linebreak(key_str(keys, resolved_keys), 18)),
+                    Cell::new(&linebreak(
+                        match args {
+                            ast::Subset::Item(item) => serde_json::to_string_pretty(&item).unwrap(),
+                            ast::Subset::Unresolved(args) => {
+                                args.into_iter()
+                                    .fold(String::with_capacity(32), |mut acc, k| {
+                                        if acc.len() > 0 {
+                                            acc.push_str(" ");
+                                        }
+                                        let k: String = k.content.clone().into();
+                                        acc.push_str(&k);
+                                        acc
+                                    })
                             }
-                            let k: String = k.into();
-                            acc.push_str(&k);
-                            acc
-                        }),
-                    18,
-                )),
-                Cell::new(&linebreak(
-                    match args {
-                        ast::Subset::Item(item) => serde_json::to_string_pretty(&item).unwrap(),
-                        ast::Subset::Unresolved(args) => {
-                            args.into_iter()
-                                .fold(String::with_capacity(32), |mut acc, k| {
-                                    if acc.len() > 0 {
-                                        acc.push_str(" ");
-                                    }
-                                    let k: String = k.content.into();
-                                    acc.push_str(&k);
-                                    acc
-                                })
-                        }
-                    },
-                    55,
-                )),
-            ]));
-        }
+                        },
+                        55,
+                    )),
+                ]));
+            }
+            Ok(())
+        })
+        .map_err(|e| format!("compilation failed: {:?}", e))?;
     }
 
     table.print_tty(false);
