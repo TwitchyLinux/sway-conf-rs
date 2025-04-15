@@ -18,10 +18,32 @@ pub mod ast;
 /// of the current system.
 pub mod compiler;
 
+/// Describes the position of a failure when parsing the general vibe of the config.
+#[derive(Debug, Clone, Default)]
+pub struct LayoutError {
+    pub offset: usize,
+    pub line: u32,
+    pub column: usize,
+}
+
 /// Parses the layout of the config represented by the provided
 /// string.
-pub fn parse_layout<'a>(input: &'a str) -> Result<Vec<Stanza<'a>>, ()> {
-    let (_, stanzas) = many0(parse_stanza)(Span::new(input)).map_err(|_e| ())?;
+pub fn parse_layout<'a>(input: &'a str) -> Result<Vec<Stanza<'a>>, LayoutError> {
+    let (_, stanzas) = many0(parse_stanza)(Span::new(input)).map_err(|e| {
+        match e {
+            nom::Err::Incomplete(_) => LayoutError::default(),
+            nom::Err::Error(nom::error::Error{ input: span, .. }) => LayoutError {
+                offset: span.location_offset(),
+                line: span.location_line(),
+                column: span.get_utf8_column(),
+            },
+            nom::Err::Failure(nom::error::Error{ input: span, .. }) => LayoutError {
+                offset: span.location_offset(),
+                line: span.location_line(),
+                column: span.get_utf8_column(),
+            },
+        }
+    })?;
     Ok(stanzas)
 }
 
